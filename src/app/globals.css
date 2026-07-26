@@ -1,0 +1,186 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Design tokens — direction « institutionnel sobre »
+   Bleu profond, gris neutres, pas de dégradés, rayons courts.
+   ───────────────────────────────────────────────────────────────────────────── */
+:root {
+  --c-primary: #1f3a68;
+  --c-primary-hover: #172d52;
+  --c-primary-light: #eaeff7;
+  --c-primary-border: #c3d0e4;
+
+  --c-ink: #12213d;
+  --c-body: #3d4a60;
+  --c-muted: #6b7688;
+  --c-faint: #98a1b0;
+
+  --c-bg: #f4f6f9;
+  --c-surface: #ffffff;
+  --c-border: #e0e5ec;
+  --c-border-strong: #cdd4de;
+
+  --c-success: #1c6b4a;
+  --c-success-bg: #e8f3ee;
+  --c-warn: #8a5a10;
+  --c-warn-bg: #fdf3e2;
+  --c-danger: #9c2c2c;
+  --c-danger-bg: #fbecec;
+
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+}
+
+@layer base {
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--c-bg);
+    color: var(--c-body);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 {
+    color: var(--c-ink);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  /* Anneau de focus visible partout (accessibilité clavier) */
+  :focus-visible {
+    outline: 2px solid var(--c-primary);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+@layer components {
+  /* ── Boutons ─────────────────────────────────────────────────────────── */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white transition-colors disabled:opacity-45 disabled:cursor-not-allowed;
+    background: var(--c-primary);
+    border-radius: var(--r-md);
+    border: 1px solid var(--c-primary);
+  }
+  .btn-primary:hover:not(:disabled) { background: var(--c-primary-hover); border-color: var(--c-primary-hover); }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors disabled:opacity-45 disabled:cursor-not-allowed;
+    color: var(--c-ink);
+    background: var(--c-surface);
+    border: 1px solid var(--c-border-strong);
+    border-radius: var(--r-md);
+  }
+  .btn-secondary:hover:not(:disabled) { background: #f7f9fb; border-color: var(--c-muted); }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium transition-colors;
+    color: var(--c-body);
+    border-radius: var(--r-md);
+  }
+  .btn-ghost:hover { background: #eef1f5; color: var(--c-ink); }
+
+  /* ── Surfaces ────────────────────────────────────────────────────────── */
+  .card {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-lg);
+  }
+  .panel {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-md);
+  }
+
+  /* ── Champs ──────────────────────────────────────────────────────────── */
+  .input {
+    @apply w-full px-3 py-2 text-sm transition-colors;
+    color: var(--c-ink);
+    background: var(--c-surface);
+    border: 1px solid var(--c-border-strong);
+    border-radius: var(--r-md);
+  }
+  .input:hover { border-color: var(--c-muted); }
+  .input:focus {
+    outline: none;
+    border-color: var(--c-primary);
+    box-shadow: 0 0 0 3px rgba(31, 58, 104, 0.12);
+  }
+  .input::placeholder { color: var(--c-faint); }
+
+  .label {
+    @apply block text-xs font-semibold mb-1.5;
+    color: var(--c-body);
+  }
+  .hint {
+    @apply text-xs;
+    color: var(--c-muted);
+  }
+
+  /* ── Étiquettes ──────────────────────────────────────────────────────── */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium;
+    border-radius: var(--r-sm);
+  }
+  .badge-neutral { background: #eef1f5; color: var(--c-body); }
+  .badge-primary { background: var(--c-primary-light); color: var(--c-primary); }
+  .badge-success { background: var(--c-success-bg); color: var(--c-success); }
+  .badge-warn    { background: var(--c-warn-bg); color: var(--c-warn); }
+  .badge-danger  { background: var(--c-danger-bg); color: var(--c-danger); }
+
+  /* ── Encadrés informatifs ────────────────────────────────────────────── */
+  .note {
+    @apply flex gap-2.5 p-3 text-xs leading-relaxed;
+    border-radius: var(--r-md);
+    border: 1px solid var(--c-border);
+    background: #f8fafc;
+    color: var(--c-body);
+  }
+  .note-info    { background: var(--c-primary-light); border-color: var(--c-primary-border); }
+  .note-warn    { background: var(--c-warn-bg); border-color: #ecd9b4; color: var(--c-warn); }
+  .note-success { background: var(--c-success-bg); border-color: #c2ddd0; color: var(--c-success); }
+
+  /* ── Navigation ──────────────────────────────────────────────────────── */
+  .nav-link {
+    @apply inline-flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors;
+    color: var(--c-body);
+    border-radius: var(--r-md);
+  }
+  .nav-link:hover { background: #eef1f5; color: var(--c-ink); }
+  .nav-link-active {
+    color: var(--c-primary);
+    background: var(--c-primary-light);
+    font-weight: 600;
+  }
+}
+
+/* ─── Aperçu CV ─────────────────────────────────────────────────────────── */
+.cv-sheet {
+  box-shadow: 0 1px 3px rgba(18, 33, 61, 0.09), 0 8px 24px rgba(18, 33, 61, 0.08);
+}
+.cv-editable:empty::before {
+  content: attr(data-ph);
+  color: #b9c0cb;
+  font-style: italic;
+}
+.cv-editable:hover  { background: rgba(31, 58, 104, 0.06); border-radius: 2px; }
+.cv-editable:focus  { background: rgba(31, 58, 104, 0.1); border-radius: 2px; outline: none; }
+
+/* ─── Export PDF : impression de l'aperçu seul ──────────────────────────── */
+@media print {
+  @page { size: A4; margin: 0; }
+  body { background: white !important; }
+  body * { visibility: hidden; }
+  #cv-print-root, #cv-print-root * { visibility: visible; }
+  #cv-print-root {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 210mm !important;
+    min-height: 297mm !important;
+    box-shadow: none !important;
+    transform: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
