@@ -132,6 +132,17 @@ L'application est disponible sur http://localhost:3000
 Aucune n'est indispensable au démarrage : sans clé, l'application reste
 utilisable pour créer, modifier et exporter des CV et des lettres.
 
+Pour le déploiement, la fiche [VARIABLES-VERCEL.md](./VARIABLES-VERCEL.md)
+détaille chaque variable et la procédure exacte.
+
+### Limitation d'usage
+
+Les routes consommant des crédits d'API sont soumises à un quota horaire par
+visiteur (25 reformulations, 15 accroches, 10 brouillons de lettre, 6 analyses
+de CV). L'administrateur connecté en est exempté. Le compteur étant tenu en
+mémoire de l'instance, il s'agit d'une protection contre un usage anormal, à
+compléter par un plafond de dépense côté fournisseur d'API.
+
 ---
 
 ## Déploiement sur Vercel

@@ -58,13 +58,13 @@ export async function POST(req) {
   attempts.delete(ip)
   const token = await createToken()
   const res = NextResponse.json({ ok: true, name: process.env.ADMIN_NAME || 'Administrateur' })
-  res.cookies.set(ADMIN_COOKIE, token, cookieOptions)
+  res.cookies.set(ADMIN_COOKIE, token, cookieOptions(req))
   return res
 }
 
 // DELETE : déconnexion
-export async function DELETE() {
+export async function DELETE(req) {
   const res = NextResponse.json({ ok: true })
-  res.cookies.set(ADMIN_COOKIE, '', { ...cookieOptions, maxAge: 0 })
+  res.cookies.set(ADMIN_COOKIE, '', { ...cookieOptions(req), maxAge: 0 })
   return res
 }

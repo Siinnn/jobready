@@ -55,7 +55,9 @@ export function AIRewriteButton({ text, field, jobTitle, onApply }) {
       const json = await res.json()
       if (!res.ok) {
         const err = new Error(json.error || 'Erreur serveur')
-        err.unavailable = json.code === 'AI_NOT_CONFIGURED'
+        // Ces deux cas ne sont pas des pannes : on les présente comme
+        // une information, sans bouton « Réessayer » inutile.
+        err.unavailable = json.code === 'AI_NOT_CONFIGURED' || json.code === 'RATE_LIMITED'
         throw err
       }
       setSuggestions(json.suggestions)
@@ -159,7 +161,9 @@ export function SummaryGenerator({ data, onApply, compact = false }) {
       const json = await res.json()
       if (!res.ok) {
         const err = new Error(json.error || 'Erreur serveur')
-        err.unavailable = json.code === 'AI_NOT_CONFIGURED'
+        // Ces deux cas ne sont pas des pannes : on les présente comme
+        // une information, sans bouton « Réessayer » inutile.
+        err.unavailable = json.code === 'AI_NOT_CONFIGURED' || json.code === 'RATE_LIMITED'
         throw err
       }
       setSuggestions(json.suggestions)

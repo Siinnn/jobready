@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { analyzeCv, analyzeLetter, isAiConfigured } from '@/lib/ai'
 import { extractPdfText, cleanText, deterministicScan, normalizeProfile, importReport } from '@/lib/cvExtract'
+import { enforceRateLimit } from '@/lib/rateLimit'
 
 export const maxDuration = 60
 
@@ -16,6 +17,10 @@ export const maxDuration = 60
  * les coordonnées et les blocs de rubriques sont conservés.
  */
 export async function POST(req) {
+  // L'analyse d'un CV est l'appel le plus coûteux : quota plus strict.
+  const limit = await enforceRateLimit(req, 'analyzeCv')
+  if (!limit.ok) return limit.response
+
   try {
     const formData = await req.formData()
     const type = formData.get('type') || 'cv'

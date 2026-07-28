@@ -58,10 +58,18 @@ function timingSafeEqual(a, b) {
   return diff === 0
 }
 
-export const cookieOptions = {
-  httpOnly: true,
-  sameSite: 'lax',
-  secure: process.env.NODE_ENV === 'production',
-  path: '/',
-  maxAge: SESSION_HOURS * 3600,
+// L'attribut Secure est posé d'après le protocole RÉEL de la requête, et non
+// d'après NODE_ENV : sur Vercel (HTTPS) le cookie est bien protégé, tout en
+// restant utilisable lors d'un test du build de production en local (http).
+export function cookieOptions(req) {
+  const proto = req?.headers?.get?.('x-forwarded-proto')
+    || (req?.nextUrl?.protocol || '').replace(':', '')
+  const isHttps = proto === 'https'
+  return {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isHttps,
+    path: '/',
+    maxAge: SESSION_HOURS * 3600,
+  }
 }

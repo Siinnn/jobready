@@ -35,6 +35,7 @@ export default function StepCV({ onDone }) {
       const res = await fetch('/api/analyze-cv', { method: 'POST', body: fd })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || "L'analyse a échoué. Réessayez dans un instant.")
+      // json.code peut valoir RATE_LIMITED : le message serveur est déjà explicite
       // On montre le bilan avant de basculer vers l'éditeur
       setResult(json)
     } catch (e) {
@@ -176,7 +177,15 @@ export default function StepCV({ onDone }) {
       {error && (
         <div className="note note-warn mt-4">
           <Icon name="alert" size={15} />
-          <span>{error}</span>
+          <span>
+            {error}
+            <br />
+            Vous pouvez aussi{' '}
+            <a href="/creer" className="underline font-semibold" style={{ color: 'inherit' }}>
+              créer votre CV étape par étape
+            </a>{' '}
+            : c'est guidé et cela fonctionne toujours.
+          </span>
         </div>
       )}
 

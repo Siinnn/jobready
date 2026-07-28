@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { generateLetterDraft } from '@/lib/ai'
+import { enforceRateLimit, rateLimitHeaders } from '@/lib/rateLimit'
 
 export const maxDuration = 45
 
@@ -9,6 +10,9 @@ export const maxDuration = 45
  * Renvoie { hook, profile, motivation, closing }
  */
 export async function POST(req) {
+  const limit = await enforceRateLimit(req, 'letterDraft')
+  if (!limit.ok) return limit.response
+
   try {
     const payload = await req.json()
     if (!payload?.job?.title && !payload?.recipient?.company) {
@@ -21,7 +25,7 @@ export async function POST(req) {
     if (!draft.hook && !draft.profile && !draft.motivation) {
       throw new Error('EMPTY_DRAFT')
     }
-    return NextResponse.json({ draft })
+    return NextResponse.json({ draft }, { headers: rateLimitHeaders('letterDraft', limit.remaining) })
   } catch (e) {
     if (e.code === 'AI_NOT_CONFIGURED') {
       return NextResponse.json({ error: e.userMessage, code: e.code }, { status: 503 })
