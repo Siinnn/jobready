@@ -6,6 +6,7 @@ import LetterPreview from '@/components/letter/LetterPreview'
 import { TextInput, TextArea } from '@/components/editor/fields'
 import { AIRewriteButton } from '@/components/ai/AIHelpers'
 import Icon from '@/components/ui/Icon'
+import ExportPdfButton from '@/components/ui/ExportPdfButton'
 import { FONTS } from '@/lib/cvModel'
 import { PARAGRAPH_KINDS, LETTER_TONES, letterWordCount, defaultSubject, SIGNATURE_MODES, HANDWRITING_FONTS } from '@/lib/letterModel'
 
@@ -93,9 +94,8 @@ export default function EditeurLettrePage() {
             <button onClick={() => setZoom(z => Math.min(1.2, +(z + 0.1).toFixed(2)))}
               className="w-7 h-7 flex items-center justify-center hover:bg-gray-100" style={{ borderRadius: 'var(--r-sm)' }}>+</button>
           </div>
-          <button onClick={() => window.print()} className="btn-primary">
-            <Icon name="download" size={15} /> Exporter en PDF
-          </button>
+          <ExportPdfButton label="Télécharger en PDF" documentLabel="votre lettre"
+            fileName={`Lettre de motivation ${L.recipient?.company || L.job?.title || ''}`.trim()} />
         </div>
       </div>
 

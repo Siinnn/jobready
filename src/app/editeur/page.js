@@ -8,6 +8,7 @@ import TemplateGallery from '@/components/editor/TemplateGallery'
 import CvCoach from '@/components/ai/CvCoach'
 import Icon from '@/components/ui/Icon'
 import useDragList, { dragStyle } from '@/components/ui/useDragList'
+import ExportPdfButton from '@/components/ui/ExportPdfButton'
 import { SECTION_TYPES, FONTS } from '@/lib/cvModel'
 import { getTemplate, getAccent } from '@/templates'
 import { scoreCv } from '@/lib/cvScore'
@@ -123,9 +124,8 @@ export default function EditeurPage() {
               style={{ borderRadius: 'var(--r-sm)' }}>+</button>
           </div>
 
-          <button onClick={() => window.print()} className="btn-primary">
-            <Icon name="download" size={15} /> Exporter en PDF
-          </button>
+          <ExportPdfButton label="Télécharger en PDF" documentLabel="votre CV"
+            fileName={`CV ${[cv.data?.firstName, cv.data?.lastName].filter(Boolean).join(' ') || cv.name}`.trim()} />
         </div>
       </div>
 
