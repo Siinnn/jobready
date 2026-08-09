@@ -43,6 +43,9 @@ function E({ value, onChange, tag: Tag = 'span', style, placeholder, block }) {
 // scale    : zoom d'affichage (1 = 100 %)
 export default function CVPreview({ cv, editable = false, onData, onReorder, scale = 1, id = 'cv-print-root' }) {
   const [dragState, setDragState] = useState({ from: null, over: null })
+  // Déplacement d'une entrée à l'intérieur d'une rubrique (une expérience,
+  // une formation…) : { field, from, over }
+  const [entryDrag, setEntryDrag] = useState({ field: null, from: null, over: null })
   const tpl = getTemplate(cv.templateId)
   const accent = getAccent(cv)
   const fontId = cv.theme?.font || tpl.defaultFont
@@ -82,7 +85,19 @@ export default function CVPreview({ cv, editable = false, onData, onReorder, sca
   const legacyHideAll = cv.theme?.hideSectionTitles === true
   const hidesTitle = (s) => s.hideTitle ?? legacyHideAll
 
-  const ctx = { d, tpl, accent, S, sp, up, upArr, editable, contactInSidebar }
+  // Réordonnancement des entrées d'une liste (expériences, formations…)
+  const moveEntry = editable && onData
+    ? (field, from, to) => {
+        const arr = [...(d[field] || [])]
+        if (from === to || from < 0 || to < 0 || from >= arr.length || to >= arr.length) return
+        const [moved] = arr.splice(from, 1)
+        arr.splice(to, 0, moved)
+        onData({ [field]: arr })
+      }
+    : null
+
+  const entryCtx = { moveEntry, entryDrag, setEntryDrag, accent }
+  const ctx = { d, tpl, accent, S, sp, up, upArr, editable, contactInSidebar, ...entryCtx }
 
   // Réordonnancement directement sur la feuille : une poignée apparaît au
   // survol de chaque rubrique. Seule la poignée est déplaçable, afin de ne pas
@@ -214,6 +229,73 @@ function SectionShell({ id, label, accent, canReorder, drag, setDrag, onMove, ch
   )
 }
 
+// ─── Enveloppe d'une entrée dans une rubrique ───────────────────────────────
+// Permet de réordonner une expérience, une formation… directement sur la
+// feuille. Même principe que SectionShell : seule la poignée est déplaçable.
+function EntryShell({ field, index, accent, moveEntry, entryDrag, setEntryDrag, children }) {
+  const [hover, setHover] = useState(false)
+  if (!moveEntry) return children
+
+  const active = entryDrag.field === field
+  const isDragged = active && entryDrag.from === index
+  const isTarget = active && entryDrag.over === index && entryDrag.from !== index
+
+  return (
+    <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onDragOver={(e) => {
+        if (!active || entryDrag.from === null) return
+        e.preventDefault()
+        e.stopPropagation()
+        e.dataTransfer.dropEffect = 'move'
+        if (entryDrag.over !== index) setEntryDrag(s => ({ ...s, over: index }))
+      }}
+      onDrop={(e) => {
+        if (!active || entryDrag.from === null) return
+        e.preventDefault()
+        e.stopPropagation()
+        moveEntry(field, entryDrag.from, index)
+        setEntryDrag({ field: null, from: null, over: null })
+      }}
+      style={{
+        position: 'relative',
+        opacity: isDragged ? 0.35 : 1,
+        boxShadow: isTarget ? `0 -2px 0 0 ${accent}` : undefined,
+        transition: 'opacity .12s',
+      }}
+    >
+      <span
+        className="cv-drag-handle"
+        draggable
+        onDragStart={(e) => {
+          setEntryDrag({ field, from: index, over: null })
+          e.dataTransfer.effectAllowed = 'move'
+          try { e.dataTransfer.setData('text/plain', `${field}:${index}`) } catch {}
+          e.stopPropagation()
+        }}
+        onDragEnd={() => setEntryDrag({ field: null, from: null, over: null })}
+        title="Déplacer cette entrée"
+        aria-hidden="true"
+        style={{
+          position: 'absolute', left: -21, top: 1,
+          width: 15, height: 17,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'grab', userSelect: 'none',
+          color: accent, background: '#fff',
+          border: `1px solid ${accent}`, borderRadius: 3,
+          fontSize: 9, lineHeight: 1, letterSpacing: -1,
+          opacity: hover || isDragged ? 1 : 0,
+          transition: 'opacity .15s',
+        }}
+      >
+        ⠿
+      </span>
+      {children}
+    </div>
+  )
+}
+
 // ─── Titre de section (variantes par modèle, masquable) ─────────────────────
 function STitle({ label, tpl, accent, S, hideTitles }) {
   if (hideTitles) return <div style={{ height: 4 }} />
@@ -324,56 +406,62 @@ function DatedEntry({ left, right, period, timeline, S }) {
   )
 }
 
-function Experience({ d, tpl, accent, S, upArr, editable, hideTitles }) {
+function Experience({ d, tpl, accent, S, upArr, editable, hideTitles, moveEntry, entryDrag, setEntryDrag }) {
   const list = d.experiences || []
   if (list.length === 0 && !editable) return null
   return (
     <div>
       <STitle label="Expériences professionnelles" tpl={tpl} accent={accent} S={S} hideTitles={hideTitles} />
       {list.map((exp, i) => (
-        <DatedEntry key={i} timeline={tpl.timeline} S={S}
-          period={<E value={exp.period} onChange={editable ? upArr('experiences', i, 'period') : undefined} placeholder="Période" />}
-          left={
-            <>
-              <span style={{ fontSize: S.body + 0.5, fontWeight: 700 }}>
-                <E value={exp.title} onChange={editable ? upArr('experiences', i, 'title') : undefined} placeholder="Poste" />
-              </span>
-              <div style={{ fontSize: S.small + 0.5, color: accent, fontWeight: 600 }}>
-                <E value={exp.company} onChange={editable ? upArr('experiences', i, 'company') : undefined} placeholder="Entreprise" />
-              </div>
-            </>
-          }
-          right={(exp.description || editable) ? (
-            <E tag="div" block value={exp.description} onChange={editable ? upArr('experiences', i, 'description') : undefined}
-              placeholder="Missions, résultats chiffrés…"
-              style={{ fontSize: S.small + 0.5, color: '#4b5563', lineHeight: 1.45, marginTop: 3, whiteSpace: 'pre-wrap' }} />
-          ) : null}
-        />
+        <EntryShell key={i} field="experiences" index={i} accent={accent}
+          moveEntry={moveEntry} entryDrag={entryDrag} setEntryDrag={setEntryDrag}>
+          <DatedEntry timeline={tpl.timeline} S={S}
+            period={<E value={exp.period} onChange={editable ? upArr('experiences', i, 'period') : undefined} placeholder="Période" />}
+            left={
+              <>
+                <span style={{ fontSize: S.body + 0.5, fontWeight: 700 }}>
+                  <E value={exp.title} onChange={editable ? upArr('experiences', i, 'title') : undefined} placeholder="Poste" />
+                </span>
+                <div style={{ fontSize: S.small + 0.5, color: accent, fontWeight: 600 }}>
+                  <E value={exp.company} onChange={editable ? upArr('experiences', i, 'company') : undefined} placeholder="Entreprise" />
+                </div>
+              </>
+            }
+            right={(exp.description || editable) ? (
+              <E tag="div" block value={exp.description} onChange={editable ? upArr('experiences', i, 'description') : undefined}
+                placeholder="Missions, résultats chiffrés…"
+                style={{ fontSize: S.small + 0.5, color: '#4b5563', lineHeight: 1.45, marginTop: 3, whiteSpace: 'pre-wrap' }} />
+            ) : null}
+          />
+        </EntryShell>
       ))}
     </div>
   )
 }
 
-function Education({ d, tpl, accent, S, upArr, editable, hideTitles }) {
+function Education({ d, tpl, accent, S, upArr, editable, hideTitles, moveEntry, entryDrag, setEntryDrag }) {
   const list = d.education || []
   if (list.length === 0 && !editable) return null
   return (
     <div>
       <STitle label="Formation" tpl={tpl} accent={accent} S={S} hideTitles={hideTitles} />
       {list.map((edu, i) => (
-        <DatedEntry key={i} timeline={tpl.timeline} S={S}
-          period={<E value={edu.year} onChange={editable ? upArr('education', i, 'year') : undefined} placeholder="Année" />}
-          left={
-            <>
-              <span style={{ fontSize: S.body, fontWeight: 700 }}>
-                <E value={edu.degree} onChange={editable ? upArr('education', i, 'degree') : undefined} placeholder="Diplôme" />
-              </span>
-              <div style={{ fontSize: S.small, color: '#6b7280' }}>
-                <E value={edu.school} onChange={editable ? upArr('education', i, 'school') : undefined} placeholder="École / organisme" />
-              </div>
-            </>
-          }
-        />
+        <EntryShell key={i} field="education" index={i} accent={accent}
+          moveEntry={moveEntry} entryDrag={entryDrag} setEntryDrag={setEntryDrag}>
+          <DatedEntry timeline={tpl.timeline} S={S}
+            period={<E value={edu.year} onChange={editable ? upArr('education', i, 'year') : undefined} placeholder="Année" />}
+            left={
+              <>
+                <span style={{ fontSize: S.body, fontWeight: 700 }}>
+                  <E value={edu.degree} onChange={editable ? upArr('education', i, 'degree') : undefined} placeholder="Diplôme" />
+                </span>
+                <div style={{ fontSize: S.small, color: '#6b7280' }}>
+                  <E value={edu.school} onChange={editable ? upArr('education', i, 'school') : undefined} placeholder="École / organisme" />
+                </div>
+              </>
+            }
+          />
+        </EntryShell>
       ))}
     </div>
   )

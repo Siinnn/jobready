@@ -3,13 +3,21 @@ import { useState, useCallback } from 'react'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Réordonnancement par glisser-déposer, basé sur l'API HTML5 native
-// (aucune dépendance). Les flèches Monter/Descendre restent disponibles :
-// elles servent d'équivalent accessible au clavier, et de secours sur les
-// appareils où le glisser-déposer est malaisé.
+// (aucune dépendance).
+//
+// Deux jeux de propriétés distincts, et c'est essentiel :
+//   • handleProps(i) → sur la POIGNÉE seule, qui porte `draggable`
+//   • dropProps(i)   → sur le conteneur, qui n'est que zone de dépôt
+//
+// Rendre tout le conteneur déplaçable casserait la sélection de texte et la
+// saisie dans les champs qu'il contient : le navigateur démarrerait un
+// déplacement au lieu de laisser sélectionner.
+//
+// Les flèches Monter/Descendre restent l'équivalent accessible au clavier.
 // ─────────────────────────────────────────────────────────────────────────────
 export default function useDragList(items, onReorder, keyOf = (x, i) => i) {
-  const [dragKey, setDragKey] = useState(null)   // élément en cours de déplacement
-  const [overKey, setOverKey] = useState(null)   // cible survolée
+  const [dragKey, setDragKey] = useState(null)
+  const [overKey, setOverKey] = useState(null)
 
   const move = useCallback((from, to) => {
     if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) return
@@ -19,43 +27,51 @@ export default function useDragList(items, onReorder, keyOf = (x, i) => i) {
     onReorder(arr)
   }, [items, onReorder])
 
-  // Props à étaler sur chaque élément de la liste
-  const itemProps = useCallback((index) => {
+  /** À placer sur la poignée : c'est le seul élément déplaçable. */
+  const handleProps = useCallback((index) => {
     const key = keyOf(items[index], index)
     return {
       draggable: true,
       onDragStart: (e) => {
         setDragKey(key)
         e.dataTransfer.effectAllowed = 'move'
-        // Firefox exige que des données soient définies
         try { e.dataTransfer.setData('text/plain', String(index)) } catch {}
+        e.stopPropagation()
       },
       onDragEnd: () => { setDragKey(null); setOverKey(null) },
+      style: { cursor: 'grab' },
+    }
+  }, [items, keyOf])
+
+  /** À placer sur le conteneur : zone de dépôt, non déplaçable. */
+  const dropProps = useCallback((index) => {
+    const key = keyOf(items[index], index)
+    return {
       onDragOver: (e) => {
+        if (dragKey === null) return
         e.preventDefault()
         e.dataTransfer.dropEffect = 'move'
         if (overKey !== key) setOverKey(key)
       },
       onDragLeave: () => { if (overKey === key) setOverKey(null) },
       onDrop: (e) => {
+        if (dragKey === null) return
         e.preventDefault()
         const from = items.findIndex((it, i) => keyOf(it, i) === dragKey)
         if (from !== -1) move(from, index)
         setDragKey(null)
         setOverKey(null)
       },
-      'data-dragging': dragKey === key ? 'true' : undefined,
-      'data-dragover': overKey === key && dragKey !== key ? 'true' : undefined,
     }
   }, [items, keyOf, dragKey, overKey, move])
 
   const isDragging = (index) => keyOf(items[index], index) === dragKey
   const isOver = (index) => keyOf(items[index], index) === overKey && !isDragging(index)
 
-  return { itemProps, move, isDragging, isOver, dragging: dragKey !== null }
+  return { handleProps, dropProps, move, isDragging, isOver, dragging: dragKey !== null }
 }
 
-// Style visuel commun aux éléments déplaçables
+/** Style visuel d'un élément pendant le déplacement. */
 export function dragStyle({ dragging, over }) {
   return {
     opacity: dragging ? 0.4 : 1,

@@ -169,15 +169,16 @@ export default function EditeurPage() {
                   const titleHidden = s.hideTitle ?? (cv.theme?.hideSectionTitles === true)
                   return (
                     <div key={s.id}
-                      {...drag.itemProps(i)}
+                      {...drag.dropProps(i)}
                       style={{
                         border: `1px solid ${isOpen ? 'var(--c-primary-border)' : 'var(--c-border)'}`,
                         borderRadius: 'var(--r-md)', overflow: 'hidden',
                         ...dragStyle({ dragging: drag.isDragging(i), over: drag.isOver(i) }),
                       }}>
                       <div className="flex items-center gap-1 px-2 py-2" style={{ opacity: hidden ? 0.55 : 1 }}>
-                        <span title="Glisser pour déplacer" aria-hidden="true"
-                          style={{ cursor: 'grab', color: 'var(--c-faint)', fontSize: 13, letterSpacing: -1, padding: '0 3px' }}>
+                        <span {...drag.handleProps(i)}
+                          title="Glisser pour déplacer cette rubrique" aria-hidden="true"
+                          style={{ color: 'var(--c-faint)', fontSize: 13, letterSpacing: -1, padding: '2px 3px' }}>
                           ⠿
                         </span>
                         <button onClick={() => setOpenSection(isOpen ? null : s.id)}

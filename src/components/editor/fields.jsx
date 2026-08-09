@@ -60,7 +60,7 @@ export function TagInput({ label, hint, values = [], onChange, placeholder = 'Aj
       <div className="input flex flex-wrap gap-1.5 items-center cursor-text !py-1.5"
         onClick={e => e.currentTarget.querySelector('input')?.focus()}>
         {values.map((v, i) => (
-          <span key={v} {...drag.itemProps(i)}
+          <span key={v} {...drag.dropProps(i)} {...drag.handleProps(i)}
             title="Glisser pour changer l'ordre"
             className="badge badge-primary gap-1"
             style={{ cursor: 'grab', ...dragStyle({ dragging: drag.isDragging(i), over: drag.isOver(i) }) }}>
@@ -241,7 +241,7 @@ export function ListEditor({ label, values = [], onChange, entryType, fields, ad
       <div className="flex flex-col gap-3">
         {values.map((entry, i) => (
           <div key={i} className="p-4"
-            {...drag.itemProps(i)}
+            {...drag.dropProps(i)}
             style={{
               background: '#fff', border: '1px solid var(--c-border)', borderRadius: 'var(--r-md)',
               ...dragStyle({ dragging: drag.isDragging(i), over: drag.isOver(i) }),
@@ -249,8 +249,11 @@ export function ListEditor({ label, values = [], onChange, entryType, fields, ad
             <div className="flex items-center justify-between gap-2 mb-3">
               <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide truncate"
                 style={{ color: 'var(--c-muted)' }}>
-                <span title="Glisser pour changer l'ordre" aria-hidden="true"
-                  style={{ cursor: 'grab', letterSpacing: -1, fontSize: 13 }}>⠿</span>
+                {/* Seule la poignée est déplaçable : les champs restent sélectionnables */}
+                <span {...drag.handleProps(i)}
+                  title="Glisser pour changer l'ordre" aria-hidden="true"
+                  className="px-1 -ml-1 py-0.5 rounded"
+                  style={{ letterSpacing: -1, fontSize: 13, color: 'var(--c-faint)' }}>⠿</span>
                 {titleOf ? (titleOf(entry) || `Élément ${i + 1}`) : `Élément ${i + 1}`}
               </span>
               <div className="flex gap-0.5 shrink-0" style={{ color: 'var(--c-faint)' }}>
