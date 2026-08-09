@@ -32,6 +32,16 @@
   --r-sm: 4px;
   --r-md: 6px;
   --r-lg: 8px;
+
+  /* Code couleur des deux univers, pour que l'utilisateur sache toujours
+     s'il travaille sur un CV ou sur une lettre de motivation. */
+  --c-cv: #1f3a68;          /* bleu : CV */
+  --c-cv-light: #eaeff7;
+  --c-cv-border: #c3d0e4;
+
+  --c-letter: #7a4419;      /* terre de sienne : lettre de motivation */
+  --c-letter-light: #fbf1e8;
+  --c-letter-border: #e8d3bd;
 }
 
 @layer base {
@@ -152,6 +162,13 @@
     background: var(--c-primary-light);
     font-weight: 600;
   }
+  /* Variantes colorées par univers */
+  .nav-link-cv.nav-link-active     { color: var(--c-cv);     background: var(--c-cv-light); }
+  .nav-link-letter.nav-link-active { color: var(--c-letter); background: var(--c-letter-light); }
+
+  /* Filet coloré en tête des pages d'un univers */
+  .rail-cv     { border-top: 3px solid var(--c-cv); }
+  .rail-letter { border-top: 3px solid var(--c-letter); }
 }
 
 /* ─── Aperçu CV ─────────────────────────────────────────────────────────── */

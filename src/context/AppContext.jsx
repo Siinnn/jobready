@@ -218,10 +218,10 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       // Multi-CV
-      cvs, activeCv, activeCvId, setActiveCvId,
+      cvs, setCvs, activeCv, activeCvId, setActiveCvId,
       createCv, updateCv, removeCv, duplicateCvById,
       // Multi-lettres
-      letters, activeLetter, activeLetterId, setActiveLetterId,
+      letters, setLetters, activeLetter, activeLetterId, setActiveLetterId,
       createLetter, updateLetter, removeLetter, duplicateLetterById,
       // Compatibilité modules existants
       profile, setProfile, updateProfile,

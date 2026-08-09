@@ -7,6 +7,7 @@ import SectionForm from '@/components/editor/SectionForms'
 import TemplateGallery from '@/components/editor/TemplateGallery'
 import CvCoach from '@/components/ai/CvCoach'
 import Icon from '@/components/ui/Icon'
+import useDragList, { dragStyle } from '@/components/ui/useDragList'
 import { SECTION_TYPES, FONTS } from '@/lib/cvModel'
 import { getTemplate, getAccent } from '@/templates'
 import { scoreCv } from '@/lib/cvScore'
@@ -68,6 +69,9 @@ export default function EditeurPage() {
   const addSection = (id) => upSections(s => s.some(x => x.id === id) ? s : [...s, { id, visible: true }])
   const removeSection = (id) => upSections(s => s.filter(x => x.id !== id))
   const missing = Object.keys(SECTION_TYPES).filter(t => SECTION_TYPES[t].optional && !cv.sections.some(s => s.id === t))
+
+  // Glisser-déposer des rubriques (les flèches restent l'équivalent clavier)
+  const drag = useDragList(cv.sections, (arr) => updateCv(cv.id, { sections: arr }), (s) => s.id)
 
   return (
     <div className="h-screen flex flex-col">
@@ -144,17 +148,32 @@ export default function EditeurPage() {
             {/* ── Contenu ── */}
             {tab === 'content' && (
               <div className="flex flex-col gap-2">
+                <p className="note">
+                  <Icon name="sliders" size={14} />
+                  <span>
+                    Faites glisser une rubrique par sa poignée <strong>⠿</strong> pour changer
+                    l'ordre du CV, ou utilisez les flèches. Le résultat s'affiche aussitôt à droite.
+                  </span>
+                </p>
+
                 {cv.sections.map((s, i) => {
                   const meta = SECTION_TYPES[s.id]
                   if (!meta) return null
                   const isOpen = openSection === s.id
                   const hidden = s.visible === false
                   return (
-                    <div key={s.id} style={{
-                      border: `1px solid ${isOpen ? 'var(--c-primary-border)' : 'var(--c-border)'}`,
-                      borderRadius: 'var(--r-md)', overflow: 'hidden',
-                    }}>
-                      <div className="flex items-center gap-1 px-2.5 py-2" style={{ opacity: hidden ? 0.55 : 1 }}>
+                    <div key={s.id}
+                      {...drag.itemProps(i)}
+                      style={{
+                        border: `1px solid ${isOpen ? 'var(--c-primary-border)' : 'var(--c-border)'}`,
+                        borderRadius: 'var(--r-md)', overflow: 'hidden',
+                        ...dragStyle({ dragging: drag.isDragging(i), over: drag.isOver(i) }),
+                      }}>
+                      <div className="flex items-center gap-1 px-2 py-2" style={{ opacity: hidden ? 0.55 : 1 }}>
+                        <span title="Glisser pour déplacer" aria-hidden="true"
+                          style={{ cursor: 'grab', color: 'var(--c-faint)', fontSize: 13, letterSpacing: -1, padding: '0 3px' }}>
+                          ⠿
+                        </span>
                         <button onClick={() => setOpenSection(isOpen ? null : s.id)}
                           aria-expanded={isOpen}
                           className="flex-1 flex items-center gap-2 text-left text-sm font-semibold"
@@ -283,6 +302,26 @@ export default function EditeurPage() {
                   onChange={v => upTheme({ fontSize: v })} />
                 <Slider label="Espacement" value={cv.theme?.spacing ?? 1} min={0.8} max={1.3} step={0.05}
                   onChange={v => upTheme({ spacing: v })} />
+
+                <div>
+                  <span className="label">Affichage</span>
+                  <label className="flex items-start gap-2.5 p-3 cursor-pointer"
+                    style={{ border: '1px solid var(--c-border-strong)', borderRadius: 'var(--r-md)' }}>
+                    <input type="checkbox" className="w-4 h-4 mt-0.5" style={{ accentColor: 'var(--c-primary)' }}
+                      checked={cv.theme?.hideSectionTitles === true}
+                      onChange={e => upTheme({ hideSectionTitles: e.target.checked })} />
+                    <span>
+                      <span className="block text-sm font-semibold" style={{ color: 'var(--c-ink)' }}>
+                        Masquer les titres de rubrique
+                      </span>
+                      <span className="block text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--c-muted)' }}>
+                        Retire les intitulés « Accroche », « Compétences », etc. Le CV gagne en
+                        sobriété, mais devient moins lisible par les logiciels de recrutement :
+                        à réserver à un envoi direct par email.
+                      </span>
+                    </span>
+                  </label>
+                </div>
 
                 <p className="note">
                   <Icon name="info" size={14} />

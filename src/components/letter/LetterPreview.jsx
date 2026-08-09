@@ -1,6 +1,6 @@
 'use client'
 import { FONTS } from '@/lib/cvModel'
-import { defaultSubject } from '@/lib/letterModel'
+import { defaultSubject, HANDWRITING_FONTS } from '@/lib/letterModel'
 
 export const A4_W = 794
 export const A4_H = 1123
@@ -92,9 +92,34 @@ export default function LetterPreview({ letter, scale = 1, id = 'cv-print-root' 
       </div>
 
       {/* Signature */}
-      <div style={{ marginTop: S.gap * 1.6, textAlign: 'right' }}>
-        {fullName}
-      </div>
+      <Signature letter={letter} fullName={fullName} S={S} />
+    </div>
+  )
+}
+
+function Signature({ letter, fullName, S }) {
+  const sig = letter.signature || { mode: 'none' }
+  const size = sig.size || 1
+  const hwFont = (HANDWRITING_FONTS.find(f => f.id === sig.font) || HANDWRITING_FONTS[0]).stack
+
+  return (
+    <div style={{ marginTop: S.gap * 1.5, textAlign: 'right' }}>
+      {sig.mode === 'image' && sig.image && (
+        <img
+          src={sig.image}
+          alt=""
+          style={{
+            display: 'inline-block', maxHeight: 62 * size, maxWidth: 230 * size,
+            objectFit: 'contain', marginBottom: 4,
+          }}
+        />
+      )}
+      {sig.mode === 'handwritten' && fullName && (
+        <div style={{ fontFamily: hwFont, fontSize: 24 * size, lineHeight: 1.2, marginBottom: 2, color: '#1a2f52' }}>
+          {fullName}
+        </div>
+      )}
+      <div style={{ fontSize: S.body }}>{fullName}</div>
     </div>
   )
 }

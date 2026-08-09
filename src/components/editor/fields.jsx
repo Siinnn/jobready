@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { EMPTY_ENTRIES } from '@/lib/cvModel'
 import Icon from '@/components/ui/Icon'
+import useDragList, { dragStyle } from '@/components/ui/useDragList'
 
 // ─── Champs de base ──────────────────────────────────────────────────────────
 export function Field({ label, hint, children }) {
@@ -38,8 +39,11 @@ export function TextArea({ label, hint, value, onChange, placeholder, rows = 4, 
 }
 
 // ─── Saisie de tags (compétences, centres d'intérêt) ────────────────────────
+// L'ordre de saisie est conservé et modifiable : les premières compétences
+// listées sont celles que le recruteur lit en premier.
 export function TagInput({ label, hint, values = [], onChange, placeholder = 'Ajouter puis Entrée', suggestions = [] }) {
   const [draft, setDraft] = useState('')
+  const drag = useDragList(values, onChange, (v) => v)
 
   const add = (v) => {
     const t = v.trim()
@@ -56,7 +60,10 @@ export function TagInput({ label, hint, values = [], onChange, placeholder = 'Aj
       <div className="input flex flex-wrap gap-1.5 items-center cursor-text !py-1.5"
         onClick={e => e.currentTarget.querySelector('input')?.focus()}>
         {values.map((v, i) => (
-          <span key={i} className="badge badge-primary gap-1">
+          <span key={v} {...drag.itemProps(i)}
+            title="Glisser pour changer l'ordre"
+            className="badge badge-primary gap-1"
+            style={{ cursor: 'grab', ...dragStyle({ dragging: drag.isDragging(i), over: drag.isOver(i) }) }}>
             {v}
             <button type="button" onClick={() => remove(i)} aria-label={`Retirer ${v}`}
               className="leading-none opacity-60 hover:opacity-100">
@@ -144,22 +151,53 @@ export function PeriodPicker({ label = 'Période', value, onChange, currentLabel
   // Entièrement dérivé de la valeur (pas d'état local) → fiable même si la liste est réordonnée
   const { start, end, current } = parsePeriod(value)
   const emit = (s, e, c) => onChange(formatPeriod(s, e, c))
+  const [freeText, setFreeText] = useState(false)
+
+  // Saisie libre : indispensable pour les formulations que les listes ne
+  // couvrent pas (« Été 2021 », « 2019 — 2020 », « 6 mois en 2022 »).
+  if (freeText) {
+    return (
+      <Field label={label}>
+        <input className="input" value={value || ''} onChange={e => onChange(e.target.value)}
+          placeholder="Ex : Été 2021, ou Mars 2020 — Juin 2022" autoFocus />
+        <button type="button" onClick={() => setFreeText(false)}
+          className="text-xs underline mt-1.5" style={{ color: 'var(--c-muted)' }}>
+          Revenir aux listes déroulantes
+        </button>
+      </Field>
+    )
+  }
+
   return (
     <Field label={label}>
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400 w-8 shrink-0">De</span>
+          <span className="text-xs w-8 shrink-0" style={{ color: 'var(--c-muted)' }}>Début</span>
           <MonthYearSelects part={start} onPart={p => emit(p, end, current)} />
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400 w-8 shrink-0">À</span>
+          <span className="text-xs w-8 shrink-0" style={{ color: 'var(--c-muted)' }}>Fin</span>
           <MonthYearSelects part={end} disabled={current} onPart={p => emit(start, p, false)} />
         </div>
-        <label className="flex items-center gap-2 text-xs font-medium text-gray-600 cursor-pointer w-fit">
-          <input type="checkbox" checked={current} className="accent-indigo-600 w-3.5 h-3.5"
-            onChange={e => emit(start, e.target.checked ? { month: '', year: '' } : end, e.target.checked)} />
-          {currentLabel} <span className="text-gray-400">(affiche « Aujourd'hui »)</span>
-        </label>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <label className="flex items-center gap-2 text-xs font-medium cursor-pointer w-fit"
+            style={{ color: 'var(--c-body)' }}>
+            <input type="checkbox" checked={current} className="w-3.5 h-3.5"
+              style={{ accentColor: 'var(--c-primary)' }}
+              onChange={e => emit(start, e.target.checked ? { month: '', year: '' } : end, e.target.checked)} />
+            {currentLabel}
+            <span style={{ color: 'var(--c-faint)' }}>(affiche « Aujourd'hui »)</span>
+          </label>
+          <button type="button" onClick={() => setFreeText(true)}
+            className="text-xs underline" style={{ color: 'var(--c-muted)' }}>
+            Saisir librement
+          </button>
+        </div>
+        {value && (
+          <p className="text-xs" style={{ color: 'var(--c-faint)' }}>
+            Affiché sur le CV : <strong style={{ color: 'var(--c-body)' }}>{value}</strong>
+          </p>
+        )}
       </div>
     </Field>
   )
@@ -180,6 +218,8 @@ export function YearSelect({ label = 'Année', value, onChange, allowOngoing = t
 // ─── Éditeur de liste générique (expériences, formations…) ──────────────────
 // fields : [{ key, label, placeholder, textarea?, half? }]
 export function ListEditor({ label, values = [], onChange, entryType, fields, addLabel = 'Ajouter', titleOf, renderExtra }) {
+  const drag = useDragList(values, onChange, (_, i) => `entry-${i}`)
+
   const update = (i, key, v) => {
     const arr = [...values]
     arr[i] = { ...arr[i], [key]: v }
@@ -200,9 +240,17 @@ export function ListEditor({ label, values = [], onChange, entryType, fields, ad
       {label && <label className="label">{label}</label>}
       <div className="flex flex-col gap-3">
         {values.map((entry, i) => (
-          <div key={i} className="p-4" style={{ background: '#fff', border: '1px solid var(--c-border)', borderRadius: 'var(--r-md)' }}>
+          <div key={i} className="p-4"
+            {...drag.itemProps(i)}
+            style={{
+              background: '#fff', border: '1px solid var(--c-border)', borderRadius: 'var(--r-md)',
+              ...dragStyle({ dragging: drag.isDragging(i), over: drag.isOver(i) }),
+            }}>
             <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="text-xs font-semibold uppercase tracking-wide truncate" style={{ color: 'var(--c-muted)' }}>
+              <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide truncate"
+                style={{ color: 'var(--c-muted)' }}>
+                <span title="Glisser pour changer l'ordre" aria-hidden="true"
+                  style={{ cursor: 'grab', letterSpacing: -1, fontSize: 13 }}>⠿</span>
                 {titleOf ? (titleOf(entry) || `Élément ${i + 1}`) : `Élément ${i + 1}`}
               </span>
               <div className="flex gap-0.5 shrink-0" style={{ color: 'var(--c-faint)' }}>

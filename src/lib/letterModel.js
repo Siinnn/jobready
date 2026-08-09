@@ -25,6 +25,22 @@ const DEFAULT_BODY = [
 
 const uid = () => (crypto?.randomUUID ? crypto.randomUUID() : `lt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`)
 
+// Signature de la lettre.
+// - 'none'        : rien sous la formule de politesse
+// - 'handwritten' : le nom affiché dans une police manuscrite
+// - 'image'       : un scan ou une photo de la signature (données en base64)
+export const SIGNATURE_MODES = [
+  { id: 'none',        label: 'Aucune',        desc: 'Seul votre nom apparaît, en caractères normaux.' },
+  { id: 'handwritten', label: 'Nom manuscrit', desc: 'Votre nom écrit dans une police imitant l\'écriture à la main.' },
+  { id: 'image',       label: 'Image',         desc: 'Une photo ou un scan de votre signature.' },
+]
+
+export const HANDWRITING_FONTS = [
+  { id: 'cursive',  label: 'Anglaise',  stack: "'Segoe Script', 'Brush Script MT', 'Apple Chancery', cursive" },
+  { id: 'casual',   label: 'Décontractée', stack: "'Comic Sans MS', 'Segoe Print', 'Bradley Hand', cursive" },
+  { id: 'elegant',  label: 'Élégante',  stack: "'Palatino Linotype', 'Book Antiqua', Palatino, serif" },
+]
+
 export function createEmptyLetter(name = 'Ma lettre') {
   const now = new Date().toISOString()
   return {
@@ -37,6 +53,7 @@ export function createEmptyLetter(name = 'Ma lettre') {
     job:       { title: '', reference: '', source: '' },
     subject: '',
     showDate: true,
+    signature: { mode: 'none', font: 'cursive', image: null, size: 1 },
     body: DEFAULT_BODY.map(p => ({ ...p })),
     createdAt: now,
     updatedAt: now,

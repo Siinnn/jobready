@@ -62,7 +62,33 @@ C'est ce code qui vous exempte aussi de la limitation horaire (voir plus bas).
 
 ---
 
-## 5. Variables à NE PAS créer
+## 5. `KV_REST_API_URL` et `KV_REST_API_TOKEN` — transfert entre appareils
+
+Ces deux variables activent le **code de transfert à 6 chiffres** qui permet de
+retrouver ses CV et lettres sur un autre ordinateur ou téléphone.
+
+Vous n'avez pas à les saisir à la main : Vercel les crée automatiquement.
+
+1. Dans votre projet Vercel, onglet **Storage** → **Create Database**
+2. Choisissez **Upstash for Redis** (anciennement Vercel KV), formule gratuite
+3. Nommez la base, par exemple `jobready-transfert`, puis **Create**
+4. À l'écran suivant, **Connect to Project** → sélectionnez votre projet
+5. Vercel ajoute alors `KV_REST_API_URL` et `KV_REST_API_TOKEN` (plus quelques
+   variantes) aux variables du projet
+6. Redéployez
+
+**Sans ces variables**, la page `/transfert` reste accessible et propose la
+**sauvegarde par fichier** : l'utilisateur télécharge un fichier et le restaure
+sur l'autre appareil. Cette méthode ne fait transiter aucune donnée et n'expire
+jamais — elle suffit parfaitement pour une version de test.
+
+Ce qui est stocké avec le code : une copie des CV et lettres, associée au code
+seul, **supprimée automatiquement au bout de 24 heures**, avec un maximum de
+8 tentatives de saisie par code.
+
+---
+
+## 6. Variables à NE PAS créer
 
 - `NEXT_PUBLIC_APP_URL` : inutile sur Vercel, qui fournit l'URL automatiquement
 - `AI_MODEL_ADVANCED`, `AI_MODEL_FAST`, `AI_MODEL_FALLBACK` : des valeurs par

@@ -4,11 +4,15 @@ import { useRouter, usePathname } from 'next/navigation'
 import Icon from '@/components/ui/Icon'
 
 // Navigation des demandeurs d'emploi : CV, lettres, guide, offres (France Travail).
+// `variant` applique le code couleur de l'univers correspondant.
 const NAV = [
-  { href: '/mes-cv',      label: 'Mes CV',     icon: 'files' },
-  { href: '/mes-lettres', label: 'Mes lettres', icon: 'mail' },
-  { href: '/guide-ats',   label: 'Guide ATS',  icon: 'shield' },
-  { href: '/offres',      label: 'Offres',     icon: 'search' },
+  { href: '/mes-cv',      label: 'Mes CV',      icon: 'files',  variant: 'nav-link-cv',
+    match: ['/mes-cv', '/creer', '/editeur', '/importer'] },
+  { href: '/mes-lettres', label: 'Mes lettres', icon: 'mail',   variant: 'nav-link-letter',
+    match: ['/mes-lettres', '/lettres'] },
+  { href: '/guide-ats',   label: 'Guide ATS',   icon: 'shield' },
+  { href: '/offres',      label: 'Offres',      icon: 'search' },
+  { href: '/transfert',   label: 'Transfert',   icon: 'copy' },
 ]
 
 export default function AppHeader({ actions, compact = false }) {
@@ -41,10 +45,10 @@ export default function AppHeader({ actions, compact = false }) {
 
         <nav className="hidden md:flex items-center gap-1 flex-1">
           {items.map(item => {
-            const active = pathname === item.href || pathname.startsWith(item.href + '/')
+            const active = isActive(item, pathname)
             return (
               <button key={item.href} onClick={() => router.push(item.href)}
-                className={`nav-link ${active ? 'nav-link-active' : ''}`}
+                className={`nav-link ${item.variant || ''} ${active ? 'nav-link-active' : ''}`}
                 aria-current={active ? 'page' : undefined}>
                 <Icon name={item.icon} size={15} />
                 {item.label}
@@ -66,10 +70,10 @@ export default function AppHeader({ actions, compact = false }) {
       <nav className="md:hidden flex items-center gap-1 px-3 pb-2 overflow-x-auto"
         style={{ borderTop: '1px solid var(--c-border)' }}>
         {items.map(item => {
-          const active = pathname === item.href || pathname.startsWith(item.href + '/')
+          const active = isActive(item, pathname)
           return (
             <button key={item.href} onClick={() => router.push(item.href)}
-              className={`nav-link !px-2.5 !py-1.5 !text-xs whitespace-nowrap ${active ? 'nav-link-active' : ''}`}>
+              className={`nav-link !px-2.5 !py-1.5 !text-xs whitespace-nowrap ${item.variant || ''} ${active ? 'nav-link-active' : ''}`}>
               <Icon name={item.icon} size={13} />
               {item.label}
             </button>
@@ -78,4 +82,11 @@ export default function AppHeader({ actions, compact = false }) {
       </nav>
     </header>
   )
+}
+
+// Une entrée reste active sur toutes les pages de son univers
+// (ex. « Mes CV » l'est aussi sur /creer, /editeur et /importer).
+function isActive(item, pathname) {
+  const paths = item.match || [item.href]
+  return paths.some(p => pathname === p || pathname.startsWith(p + '/'))
 }

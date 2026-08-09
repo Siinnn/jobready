@@ -7,14 +7,15 @@ import { TextInput, TextArea } from '@/components/editor/fields'
 import { AIRewriteButton } from '@/components/ai/AIHelpers'
 import Icon from '@/components/ui/Icon'
 import { FONTS } from '@/lib/cvModel'
-import { PARAGRAPH_KINDS, LETTER_TONES, letterWordCount, defaultSubject } from '@/lib/letterModel'
+import { PARAGRAPH_KINDS, LETTER_TONES, letterWordCount, defaultSubject, SIGNATURE_MODES, HANDWRITING_FONTS } from '@/lib/letterModel'
 
 const ACCENTS = ['#1f3a68', '#2563eb', '#0f766e', '#1c6b4a', '#4338ca', '#475569', '#111827']
 
 const TABS = [
-  { id: 'body',    label: 'Texte',        icon: 'pencil' },
-  { id: 'infos',   label: 'Coordonnées',  icon: 'user' },
-  { id: 'style',   label: 'Mise en page', icon: 'sliders' },
+  { id: 'body',      label: 'Texte',       icon: 'pencil' },
+  { id: 'infos',     label: 'Coordonnées', icon: 'user' },
+  { id: 'signature', label: 'Signature',   icon: 'award' },
+  { id: 'style',     label: 'Mise en page', icon: 'sliders' },
 ]
 
 export default function EditeurLettrePage() {
@@ -241,6 +242,9 @@ export default function EditeurLettrePage() {
               </div>
             )}
 
+            {/* ── Signature ── */}
+            {tab === 'signature' && <SignaturePanel letter={L} onChange={patch => updateLetter(L.id, l => ({ signature: { ...l.signature, ...patch } }))} />}
+
             {/* ── Mise en page ── */}
             {tab === 'style' && (
               <div className="flex flex-col gap-6">
@@ -303,6 +307,151 @@ export default function EditeurLettrePage() {
             <LetterPreview letter={L} scale={zoom} />
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Panneau de signature ────────────────────────────────────────────────────
+function SignaturePanel({ letter, onChange }) {
+  const sig = letter.signature || { mode: 'none', font: 'cursive', size: 1 }
+  const [error, setError] = useState('')
+  const fullName = [letter.sender?.firstName, letter.sender?.lastName].filter(Boolean).join(' ')
+
+  const handleFile = (file) => {
+    setError('')
+    if (!file) return
+    if (!/^image\/(png|jpeg|jpg|webp)$/.test(file.type)) {
+      setError('Formats acceptés : PNG, JPEG ou WebP.')
+      return
+    }
+    // Le fichier est converti en données intégrées, stockées avec la lettre
+    // dans le navigateur : rien n'est envoyé sur un serveur.
+    if (file.size > 1.5 * 1024 * 1024) {
+      setError('Image trop lourde (1,5 Mo maximum). Recadrez-la ou réduisez sa taille.')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => onChange({ image: String(reader.result), mode: 'image' })
+    reader.onerror = () => setError("La lecture du fichier a échoué.")
+    reader.readAsDataURL(file)
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div>
+        <span className="label">Type de signature</span>
+        <div className="flex flex-col gap-2">
+          {SIGNATURE_MODES.map(m => (
+            <button key={m.id} onClick={() => onChange({ mode: m.id })}
+              className="text-left p-3 transition-colors"
+              style={{
+                border: `1px solid ${sig.mode === m.id ? 'var(--c-primary)' : 'var(--c-border-strong)'}`,
+                background: sig.mode === m.id ? 'var(--c-primary-light)' : '#fff',
+                borderRadius: 'var(--r-md)',
+              }}>
+              <span className="flex items-center gap-2 text-sm font-semibold"
+                style={{ color: sig.mode === m.id ? 'var(--c-primary)' : 'var(--c-ink)' }}>
+                {m.label}
+                {sig.mode === m.id && <Icon name="check" size={14} />}
+              </span>
+              <span className="block text-xs mt-0.5" style={{ color: 'var(--c-muted)' }}>{m.desc}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Nom manuscrit */}
+      {sig.mode === 'handwritten' && (
+        <div>
+          <span className="label">Style d'écriture</span>
+          {!fullName && (
+            <div className="note note-warn mb-2">
+              <Icon name="alert" size={14} />
+              <span>Renseignez votre prénom et votre nom dans l'onglet Coordonnées pour voir la signature.</span>
+            </div>
+          )}
+          <div className="flex flex-col gap-2">
+            {HANDWRITING_FONTS.map(f => (
+              <button key={f.id} onClick={() => onChange({ font: f.id })}
+                className="flex items-center justify-between gap-3 px-3 py-2.5 transition-colors"
+                style={{
+                  border: `1px solid ${sig.font === f.id ? 'var(--c-primary)' : 'var(--c-border-strong)'}`,
+                  background: sig.font === f.id ? 'var(--c-primary-light)' : '#fff',
+                  borderRadius: 'var(--r-md)',
+                }}>
+                <span className="text-xs font-semibold" style={{ color: 'var(--c-muted)' }}>{f.label}</span>
+                <span style={{ fontFamily: f.stack, fontSize: 19, color: '#1a2f52' }}>
+                  {fullName || 'Votre nom'}
+                </span>
+              </button>
+            ))}
+          </div>
+          <p className="hint mt-2">
+            Une signature en police manuscrite n'a pas de valeur juridique, mais reste
+            courante et bien acceptée sur une lettre de candidature.
+          </p>
+        </div>
+      )}
+
+      {/* Image importée */}
+      {sig.mode === 'image' && (
+        <div>
+          <span className="label">Image de votre signature</span>
+          {sig.image ? (
+            <div className="p-3 text-center" style={{ border: '1px solid var(--c-border)', borderRadius: 'var(--r-md)', background: '#fbfcfd' }}>
+              <img src={sig.image} alt="Aperçu de la signature"
+                style={{ maxHeight: 70, maxWidth: '100%', objectFit: 'contain', margin: '0 auto' }} />
+              <button onClick={() => onChange({ image: null })}
+                className="text-xs underline mt-2" style={{ color: 'var(--c-danger)' }}>
+                Retirer cette image
+              </button>
+            </div>
+          ) : (
+            <label className="flex flex-col items-center gap-2 p-6 cursor-pointer text-center transition-colors"
+              style={{ border: '1px dashed var(--c-border-strong)', borderRadius: 'var(--r-md)', background: '#fbfcfd' }}>
+              <Icon name="upload" size={20} style={{ color: 'var(--c-muted)' }} />
+              <span className="text-sm font-semibold" style={{ color: 'var(--c-ink)' }}>
+                Choisir une image
+              </span>
+              <span className="text-xs" style={{ color: 'var(--c-muted)' }}>
+                PNG, JPEG ou WebP · 1,5 Mo maximum
+              </span>
+              <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+                onChange={e => handleFile(e.target.files?.[0])} />
+            </label>
+          )}
+
+          {error && (
+            <div className="note note-warn mt-2">
+              <Icon name="alert" size={14} />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div className="note mt-3">
+            <Icon name="info" size={14} />
+            <span>
+              Pour un rendu net : signez sur une feuille blanche au stylo noir, photographiez-la
+              bien à plat en pleine lumière, puis recadrez au plus près du trait. Une image
+              PNG à fond transparent donne le meilleur résultat.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Taille */}
+      {sig.mode !== 'none' && (
+        <Slider label="Taille de la signature" value={sig.size ?? 1} min={0.6} max={1.6} step={0.1}
+          onChange={v => onChange({ size: v })} />
+      )}
+
+      <div className="note">
+        <Icon name="shield" size={14} />
+        <span>
+          Votre signature est enregistrée uniquement dans ce navigateur, avec la lettre.
+          Elle n'est envoyée à aucun serveur.
+        </span>
       </div>
     </div>
   )

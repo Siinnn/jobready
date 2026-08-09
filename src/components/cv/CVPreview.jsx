@@ -71,7 +71,15 @@ export default function CVPreview({ cv, editable = false, onData, scale = 1, id 
   const mainSections = visible.filter(s => !sidebarTypes.includes(s.id))
   const sidebarBg = getSidebarBg(tpl, accent)
 
-  const ctx = { d, tpl, accent, S, sp, up, upArr, editable }
+  // Les coordonnées ne doivent apparaître qu'une seule fois : si la colonne
+  // latérale contient déjà le bloc « Contact », l'en-tête ne les répète pas.
+  const contactInSidebar = sidebarTypes.includes('contact')
+
+  // Masquage des titres de rubrique (« Accroche », « Compétences »…),
+  // réglable par CV depuis l'onglet Style.
+  const hideTitles = cv.theme?.hideSectionTitles === true
+
+  const ctx = { d, tpl, accent, S, sp, up, upArr, editable, contactInSidebar, hideTitles }
 
   const body = tpl.layout === 'single' ? (
     <div style={{ padding: `${S.pad * 0.75}px ${S.pad}px`, display: 'flex', flexDirection: 'column', gap: S.gap }}>
@@ -113,8 +121,9 @@ export default function CVPreview({ cv, editable = false, onData, scale = 1, id 
   )
 }
 
-// ─── Titre de section (variantes par modèle) ─────────────────────────────────
-function STitle({ label, tpl, accent, S }) {
+// ─── Titre de section (variantes par modèle, masquable) ─────────────────────
+function STitle({ label, tpl, accent, S, hideTitles }) {
+  if (hideTitles) return <div style={{ height: 4 }} />
   const base = { fontSize: S.stitle, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8 }
   const variants = {
     underline: { ...base, color: accent, borderBottom: `2px solid ${accent}`, paddingBottom: 4 },
@@ -159,7 +168,7 @@ function ContactLine({ d, S, color = '#6b7280', up, editable }) {
   )
 }
 
-function Header({ d, tpl, accent, S, up, editable }) {
+function Header({ d, tpl, accent, S, up, editable, contactInSidebar }) {
   const name = (
     <div style={{ fontSize: S.name, fontWeight: tpl.id === 'minimaliste' ? 300 : 800, lineHeight: 1.1 }}>
       <E value={d.firstName} onChange={editable ? up('firstName') : undefined} placeholder="Prénom" />{' '}
@@ -178,23 +187,23 @@ function Header({ d, tpl, accent, S, up, editable }) {
     return (
       <div style={{ background: accent, color: 'white', margin: `-${S.pad * 0.75}px -${S.pad}px 0`, padding: `${S.pad * 0.6}px ${S.pad}px` }}>
         {name}{title}
-        <ContactLine d={d} S={S} color="rgba(255,255,255,0.85)" up={up} editable={editable} />
+        {!contactInSidebar && <ContactLine d={d} S={S} color="rgba(255,255,255,0.85)" up={up} editable={editable} />}
       </div>
     )
   }
   return (
     <div style={tpl.headerVariant === 'underline' ? { borderBottom: `2.5px solid ${accent}`, paddingBottom: 12 } : {}}>
       {name}{title}
-      <ContactLine d={d} S={S} up={up} editable={editable} />
+      {!contactInSidebar && <ContactLine d={d} S={S} up={up} editable={editable} />}
     </div>
   )
 }
 
-function Summary({ d, tpl, accent, S, up, editable }) {
+function Summary({ d, tpl, accent, S, up, editable, hideTitles }) {
   if (!d.summary && !editable) return null
   return (
     <div>
-      <STitle label="Accroche" tpl={tpl} accent={accent} S={S} />
+      <STitle label="Accroche" tpl={tpl} accent={accent} S={S} hideTitles={hideTitles} />
       <E tag="div" block value={d.summary} onChange={editable ? up('summary') : undefined}
         placeholder="Votre accroche : qui vous êtes, ce que vous visez, vos points forts…"
         style={{ fontSize: S.body, color: '#374151', lineHeight: 1.55, fontStyle: tpl.id === 'minimaliste' ? 'italic' : 'normal' }} />
@@ -222,12 +231,12 @@ function DatedEntry({ left, right, period, timeline, S }) {
   )
 }
 
-function Experience({ d, tpl, accent, S, upArr, editable }) {
+function Experience({ d, tpl, accent, S, upArr, editable, hideTitles }) {
   const list = d.experiences || []
   if (list.length === 0 && !editable) return null
   return (
     <div>
-      <STitle label="Expériences professionnelles" tpl={tpl} accent={accent} S={S} />
+      <STitle label="Expériences professionnelles" tpl={tpl} accent={accent} S={S} hideTitles={hideTitles} />
       {list.map((exp, i) => (
         <DatedEntry key={i} timeline={tpl.timeline} S={S}
           period={<E value={exp.period} onChange={editable ? upArr('experiences', i, 'period') : undefined} placeholder="Période" />}
@@ -252,12 +261,12 @@ function Experience({ d, tpl, accent, S, upArr, editable }) {
   )
 }
 
-function Education({ d, tpl, accent, S, upArr, editable }) {
+function Education({ d, tpl, accent, S, upArr, editable, hideTitles }) {
   const list = d.education || []
   if (list.length === 0 && !editable) return null
   return (
     <div>
-      <STitle label="Formation" tpl={tpl} accent={accent} S={S} />
+      <STitle label="Formation" tpl={tpl} accent={accent} S={S} hideTitles={hideTitles} />
       {list.map((edu, i) => (
         <DatedEntry key={i} timeline={tpl.timeline} S={S}
           period={<E value={edu.year} onChange={editable ? upArr('education', i, 'year') : undefined} placeholder="Année" />}
@@ -277,14 +286,14 @@ function Education({ d, tpl, accent, S, upArr, editable }) {
   )
 }
 
-function Skills({ d, tpl, accent, S }) {
+function Skills({ d, tpl, accent, S, hideTitles }) {
   const tech = d.techSkills || []
   const soft = d.softSkills || []
   if (tech.length + soft.length === 0) return null
   if (tpl.id === 'minimaliste') {
     return (
       <div>
-        <STitle label="Compétences" tpl={tpl} accent={accent} S={S} />
+        <STitle label="Compétences" tpl={tpl} accent={accent} S={S} hideTitles={hideTitles} />
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
           {[...tech, ...soft].map((s, i) => (
             <span key={i} style={{ fontSize: S.small, padding: '2.5px 11px', border: '1px solid #e5e7eb', borderRadius: 20 }}>{s}</span>
@@ -295,19 +304,19 @@ function Skills({ d, tpl, accent, S }) {
   }
   return (
     <div>
-      <STitle label="Compétences" tpl={tpl} accent={accent} S={S} />
+      <STitle label="Compétences" tpl={tpl} accent={accent} S={S} hideTitles={hideTitles} />
       {tech.length > 0 && <div style={{ fontSize: S.small + 0.5, marginBottom: 4 }}><strong>Techniques : </strong>{tech.join(' · ')}</div>}
       {soft.length > 0 && <div style={{ fontSize: S.small + 0.5 }}><strong>Personnelles : </strong>{soft.join(' · ')}</div>}
     </div>
   )
 }
 
-function Languages({ d, tpl, accent, S }) {
+function Languages({ d, tpl, accent, S, hideTitles }) {
   const list = d.languages || []
   if (list.length === 0) return null
   return (
     <div>
-      <STitle label="Langues" tpl={tpl} accent={accent} S={S} />
+      <STitle label="Langues" tpl={tpl} accent={accent} S={S} hideTitles={hideTitles} />
       <div style={{ fontSize: S.small + 0.5, display: 'flex', flexWrap: 'wrap', gap: '3px 22px' }}>
         {list.map((l, i) => (
           <span key={i}><strong>{l.name}</strong>{l.level ? ` — ${l.level}` : ''}</span>
@@ -317,12 +326,12 @@ function Languages({ d, tpl, accent, S }) {
   )
 }
 
-function Projects({ d, tpl, accent, S, upArr, editable }) {
+function Projects({ d, tpl, accent, S, upArr, editable, hideTitles }) {
   const list = d.projects || []
   if (list.length === 0) return null
   return (
     <div>
-      <STitle label="Projets" tpl={tpl} accent={accent} S={S} />
+      <STitle label="Projets" tpl={tpl} accent={accent} S={S} hideTitles={hideTitles} />
       {list.map((p, i) => (
         <div key={i} style={{ marginBottom: 9 }}>
           <span style={{ fontSize: S.body, fontWeight: 700 }}>
@@ -339,12 +348,12 @@ function Projects({ d, tpl, accent, S, upArr, editable }) {
   )
 }
 
-function Certifications({ d, tpl, accent, S }) {
+function Certifications({ d, tpl, accent, S, hideTitles }) {
   const list = d.certifications || []
   if (list.length === 0) return null
   return (
     <div>
-      <STitle label="Certifications" tpl={tpl} accent={accent} S={S} />
+      <STitle label="Certifications" tpl={tpl} accent={accent} S={S} hideTitles={hideTitles} />
       {list.map((c, i) => (
         <div key={i} style={{ fontSize: S.small + 0.5, marginBottom: 4 }}>
           <strong>{c.name}</strong>{c.issuer ? ` — ${c.issuer}` : ''}{c.year ? ` (${c.year})` : ''}
@@ -354,12 +363,12 @@ function Certifications({ d, tpl, accent, S }) {
   )
 }
 
-function Volunteering({ d, tpl, accent, S, upArr, editable }) {
+function Volunteering({ d, tpl, accent, S, upArr, editable, hideTitles }) {
   const list = d.volunteering || []
   if (list.length === 0) return null
   return (
     <div>
-      <STitle label="Bénévolat" tpl={tpl} accent={accent} S={S} />
+      <STitle label="Bénévolat" tpl={tpl} accent={accent} S={S} hideTitles={hideTitles} />
       {list.map((v, i) => (
         <DatedEntry key={i} timeline={tpl.timeline} S={S}
           period={v.period}
@@ -378,12 +387,12 @@ function Volunteering({ d, tpl, accent, S, upArr, editable }) {
   )
 }
 
-function Interests({ d, tpl, accent, S }) {
+function Interests({ d, tpl, accent, S, hideTitles }) {
   const list = d.interests || []
   if (list.length === 0) return null
   return (
     <div>
-      <STitle label="Centres d'intérêt" tpl={tpl} accent={accent} S={S} />
+      <STitle label="Centres d'intérêt" tpl={tpl} accent={accent} S={S} hideTitles={hideTitles} />
       <div style={{ fontSize: S.small + 0.5 }}>{list.join(' · ')}</div>
     </div>
   )
