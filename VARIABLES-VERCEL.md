@@ -82,9 +82,19 @@ Vous n'avez pas à les saisir à la main : Vercel les crée automatiquement.
 sur l'autre appareil. Cette méthode ne fait transiter aucune donnée et n'expire
 jamais — elle suffit parfaitement pour une version de test.
 
-Ce qui est stocké avec le code : une copie des CV et lettres, associée au code
-seul, **supprimée automatiquement au bout de 24 heures**, avec un maximum de
-8 tentatives de saisie par code.
+**Ce qui est réellement stocké.** Les documents sont chiffrés dans le navigateur
+avant tout envoi, avec une clé dérivée du code de transfert. Ce code n'est jamais
+transmis : le serveur ne reçoit qu'un identifiant opaque (empreinte à sens unique)
+et un bloc chiffré qu'il ne peut pas lire. Ni vous en tant qu'administrateur, ni
+l'hébergeur de la base ne pouvez déchiffrer les CV déposés.
+
+Le dépôt est effacé automatiquement au bout de 24 heures. Les tentatives sont
+limitées à 6 par identifiant et 30 par heure et par adresse IP, ce qui rend
+impraticable la recherche de codes au hasard.
+
+C'est un point intéressant à expliquer en entretien : le choix de ne pas pouvoir
+lire les données de ses propres utilisateurs est une décision de conception, pas
+une contrainte technique.
 
 ---
 

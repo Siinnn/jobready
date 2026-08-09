@@ -101,7 +101,7 @@ export default function Home() {
               {[
                 { icon: 'user', title: 'Aucun compte à créer', text: "Pas d'inscription, pas de mot de passe, pas d'email à donner. Vous commencez directement." },
                 { icon: 'shield', title: 'Vos données restent chez vous', text: "Tout est enregistré dans votre navigateur, sur cet appareil. Rien n'est stocké sur un serveur." },
-                { icon: 'copy', title: 'Changer d\'appareil', text: <>Un code de transfert permet de retrouver vos documents ailleurs. <button onClick={() => router.push('/transfert')} className="underline" style={{ color: 'var(--c-primary)' }}>Voir comment</button></> },
+                { icon: 'copy', title: 'Changer d\'appareil', text: <>Un code de transfert chiffré permet de retrouver vos documents ailleurs. <button onClick={() => router.push('/transfert')} className="underline" style={{ color: 'var(--c-primary)' }}>Voir comment</button></> },
               ].map(p => (
                 <div key={p.title} className="flex gap-3">
                   <div className="w-7 h-7 flex items-center justify-center shrink-0"

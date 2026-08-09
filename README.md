@@ -135,6 +135,37 @@ utilisable pour créer, modifier et exporter des CV et des lettres.
 Pour le déploiement, la fiche [VARIABLES-VERCEL.md](./VARIABLES-VERCEL.md)
 détaille chaque variable et la procédure exacte.
 
+### Transfert entre appareils : modèle de sécurité
+
+Les documents étant stockés dans le navigateur, un transfert par code permet de
+les retrouver ailleurs sans créer de compte. Comme il s'agit de données
+personnelles (identité, coordonnées, parcours professionnel), le transfert est
+**chiffré de bout en bout** :
+
+```
+code (12 caractères, 60 bits d'entropie, généré localement)
+ ├── SHA-256 ─────────────► identifiant de dépôt   → envoyé au serveur
+ └── PBKDF2 (250 000 tours) ─► clé AES-GCM 256 bits → jamais envoyée
+```
+
+Le serveur ne reçoit qu'un identifiant opaque et un bloc chiffré. Il ne dispose
+d'aucun moyen de déchiffrer : ni l'hébergeur, ni l'administrateur du site ne
+peuvent lire les CV déposés. Le dépôt est effacé automatiquement au bout de
+24 heures.
+
+Contre la recherche de codes au hasard, deux limites cumulées : 6 tentatives par
+identifiant, et **30 tentatives par heure et par adresse IP** toutes clés
+confondues — c'est cette seconde limite qui rend l'énumération impraticable.
+
+La sauvegarde par fichier, elle, ne fait transiter aucune donnée mais produit un
+fichier **non chiffré** : l'interface le signale explicitement.
+
+Limites assumées : un attaquant ayant accès à la base obtient des blocs chiffrés
+inexploitables sans les codes ; en revanche il connaît le nombre de dépôts et
+leurs dates. Le code transitant par l'utilisateur (note, message), sa sécurité
+finale dépend de la façon dont celui-ci le transmet — d'où l'avertissement
+« ne le partagez qu'avec vous-même » dans l'interface.
+
 ### Limitation d'usage
 
 Les routes consommant des crédits d'API sont soumises à un quota horaire par
