@@ -61,6 +61,10 @@ export default function EditeurPage() {
   const upSections = (fn) => updateCv(cv.id, c => ({ sections: fn(c.sections) }))
 
   const toggleSection = (id) => upSections(s => s.map(x => x.id === id ? { ...x, visible: x.visible === false } : x))
+  // Masquer l'intitulé d'une rubrique sans masquer son contenu
+  const toggleTitle = (id) => upSections(s => s.map(x => x.id === id
+    ? { ...x, hideTitle: !(x.hideTitle ?? cv.theme?.hideSectionTitles === true) }
+    : x))
   const moveSection = (id, dir) => upSections(secs => {
     const i = secs.findIndex(s => s.id === id), j = i + dir
     if (i < 0 || j < 0 || j >= secs.length) return secs
@@ -151,8 +155,9 @@ export default function EditeurPage() {
                 <p className="note">
                   <Icon name="sliders" size={14} />
                   <span>
-                    Faites glisser une rubrique par sa poignée <strong>⠿</strong> pour changer
-                    l'ordre du CV, ou utilisez les flèches. Le résultat s'affiche aussitôt à droite.
+                    Pour changer l'ordre : faites glisser une rubrique par sa poignée{' '}
+                    <strong>⠿</strong>, ici ou <strong>directement sur le CV à droite</strong>
+                    {' '}(la poignée apparaît au survol). Les flèches font la même chose au clavier.
                   </span>
                 </p>
 
@@ -161,6 +166,7 @@ export default function EditeurPage() {
                   if (!meta) return null
                   const isOpen = openSection === s.id
                   const hidden = s.visible === false
+                  const titleHidden = s.hideTitle ?? (cv.theme?.hideSectionTitles === true)
                   return (
                     <div key={s.id}
                       {...drag.itemProps(i)}
@@ -181,10 +187,18 @@ export default function EditeurPage() {
                           <Icon name={SECTION_ICON[s.id] || 'file'} size={14} style={{ color: 'var(--c-muted)' }} />
                           {meta.label}
                           {hidden && <span className="badge badge-neutral">masquée</span>}
+                          {!hidden && titleHidden && <span className="badge badge-neutral">sans intitulé</span>}
                           <Icon name={isOpen ? 'chevronDown' : 'chevronRight'} size={14}
                             className="ml-auto" style={{ color: 'var(--c-faint)' }} />
                         </button>
                         <div className="flex items-center gap-0.5" style={{ color: 'var(--c-faint)' }}>
+                          {s.id !== 'header' && (
+                            <IconBtn
+                              icon="layout"
+                              title={titleHidden ? `Afficher l'intitulé « ${meta.label} »` : `Masquer l'intitulé « ${meta.label} »`}
+                              active={titleHidden}
+                              onClick={() => toggleTitle(s.id)} />
+                          )}
                           <IconBtn icon="arrowUp" title="Monter" disabled={i === 0} onClick={() => moveSection(s.id, -1)} />
                           <IconBtn icon="arrowDown" title="Descendre" disabled={i === cv.sections.length - 1} onClick={() => moveSection(s.id, 1)} />
                           {!meta.required && (
@@ -303,24 +317,15 @@ export default function EditeurPage() {
                 <Slider label="Espacement" value={cv.theme?.spacing ?? 1} min={0.8} max={1.3} step={0.05}
                   onChange={v => upTheme({ spacing: v })} />
 
-                <div>
-                  <span className="label">Affichage</span>
-                  <label className="flex items-start gap-2.5 p-3 cursor-pointer"
-                    style={{ border: '1px solid var(--c-border-strong)', borderRadius: 'var(--r-md)' }}>
-                    <input type="checkbox" className="w-4 h-4 mt-0.5" style={{ accentColor: 'var(--c-primary)' }}
-                      checked={cv.theme?.hideSectionTitles === true}
-                      onChange={e => upTheme({ hideSectionTitles: e.target.checked })} />
-                    <span>
-                      <span className="block text-sm font-semibold" style={{ color: 'var(--c-ink)' }}>
-                        Masquer les titres de rubrique
-                      </span>
-                      <span className="block text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--c-muted)' }}>
-                        Retire les intitulés « Accroche », « Compétences », etc. Le CV gagne en
-                        sobriété, mais devient moins lisible par les logiciels de recrutement :
-                        à réserver à un envoi direct par email.
-                      </span>
-                    </span>
-                  </label>
+                <div className="note">
+                  <Icon name="layout" size={14} />
+                  <span>
+                    Pour retirer l'intitulé d'une rubrique — « Accroche » par exemple, souvent
+                    inutile puisque le texte parle de lui-même — utilisez le bouton{' '}
+                    <Icon name="layout" size={11} style={{ display: 'inline', verticalAlign: '-1px' }} />{' '}
+                    en face de cette rubrique, dans l'onglet <strong>Contenu</strong>.
+                    Le réglage est indépendant pour chaque rubrique.
+                  </span>
                 </div>
 
                 <p className="note">
@@ -340,7 +345,8 @@ export default function EditeurPage() {
         {/* ── Aperçu ── */}
         <div className="flex-1 overflow-auto flex justify-center py-8 px-4 print:p-0 print:overflow-visible">
           <div style={{ width: 794 * zoom, height: 'fit-content' }}>
-            <CVPreview cv={cv} editable onData={upData} scale={zoom} />
+            <CVPreview cv={cv} editable onData={upData} scale={zoom}
+              onReorder={(sections) => updateCv(cv.id, { sections })} />
           </div>
         </div>
       </div>
@@ -348,13 +354,18 @@ export default function EditeurPage() {
   )
 }
 
-function IconBtn({ icon, title, onClick, disabled }) {
+function IconBtn({ icon, title, onClick, disabled, active }) {
   return (
     <button onClick={onClick} disabled={disabled} title={title} aria-label={title}
+      aria-pressed={active === undefined ? undefined : active}
       className="w-6 h-6 flex items-center justify-center transition-colors disabled:opacity-25"
-      style={{ borderRadius: 'var(--r-sm)' }}
-      onMouseEnter={e => !disabled && (e.currentTarget.style.background = '#eef1f5')}
-      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+      style={{
+        borderRadius: 'var(--r-sm)',
+        background: active ? 'var(--c-primary-light)' : 'transparent',
+        color: active ? 'var(--c-primary)' : 'inherit',
+      }}
+      onMouseEnter={e => !disabled && !active && (e.currentTarget.style.background = '#eef1f5')}
+      onMouseLeave={e => (e.currentTarget.style.background = active ? 'var(--c-primary-light)' : 'transparent')}>
       <Icon name={icon} size={13} />
     </button>
   )

@@ -1,5 +1,5 @@
 'use client'
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import { getTemplate, getAccent, getSidebarBg } from '@/templates'
 import { FONTS, SECTION_TYPES } from '@/lib/cvModel'
 
@@ -41,7 +41,8 @@ function E({ value, onChange, tag: Tag = 'span', style, placeholder, block }) {
 // editable : active l'édition inline au clic
 // onData   : (patch) => void — fusionné dans cv.data
 // scale    : zoom d'affichage (1 = 100 %)
-export default function CVPreview({ cv, editable = false, onData, scale = 1, id = 'cv-print-root' }) {
+export default function CVPreview({ cv, editable = false, onData, onReorder, scale = 1, id = 'cv-print-root' }) {
+  const [dragState, setDragState] = useState({ from: null, over: null })
   const tpl = getTemplate(cv.templateId)
   const accent = getAccent(cv)
   const fontId = cv.theme?.font || tpl.defaultFont
@@ -75,15 +76,43 @@ export default function CVPreview({ cv, editable = false, onData, scale = 1, id 
   // latérale contient déjà le bloc « Contact », l'en-tête ne les répète pas.
   const contactInSidebar = sidebarTypes.includes('contact')
 
-  // Masquage des titres de rubrique (« Accroche », « Compétences »…),
-  // réglable par CV depuis l'onglet Style.
-  const hideTitles = cv.theme?.hideSectionTitles === true
+  // Le masquage des intitulés se règle rubrique par rubrique (`hideTitle` sur
+  // chaque section). L'ancien réglage global reste pris en compte comme valeur
+  // par défaut, pour les CV créés avant cette évolution.
+  const legacyHideAll = cv.theme?.hideSectionTitles === true
+  const hidesTitle = (s) => s.hideTitle ?? legacyHideAll
 
-  const ctx = { d, tpl, accent, S, sp, up, upArr, editable, contactInSidebar, hideTitles }
+  const ctx = { d, tpl, accent, S, sp, up, upArr, editable, contactInSidebar }
+
+  // Réordonnancement directement sur la feuille : une poignée apparaît au
+  // survol de chaque rubrique. Seule la poignée est déplaçable, afin de ne pas
+  // gêner la sélection et la modification du texte au clic.
+  const canReorder = editable && typeof onReorder === 'function'
+
+  const moveSection = (fromId, toId) => {
+    if (!fromId || fromId === toId) return
+    const arr = [...(cv.sections || [])]
+    const from = arr.findIndex(s => s.id === fromId)
+    const to = arr.findIndex(s => s.id === toId)
+    if (from < 0 || to < 0) return
+    const [moved] = arr.splice(from, 1)
+    arr.splice(to, 0, moved)
+    onReorder(arr)
+  }
+
+  const renderSection = (s) => (
+    <SectionShell
+      key={s.id} id={s.id} accent={accent} canReorder={canReorder}
+      drag={dragState} setDrag={setDragState} onMove={moveSection}
+      label={SECTION_TYPES[s.id]?.label}
+    >
+      <SectionBlock type={s.id} hideTitles={hidesTitle(s)} {...ctx} />
+    </SectionShell>
+  )
 
   const body = tpl.layout === 'single' ? (
     <div style={{ padding: `${S.pad * 0.75}px ${S.pad}px`, display: 'flex', flexDirection: 'column', gap: S.gap }}>
-      {mainSections.map(s => <SectionBlock key={s.id} type={s.id} {...ctx} />)}
+      {mainSections.map(renderSection)}
     </div>
   ) : (
     <div style={{ display: 'flex', flexDirection: tpl.layout === 'sidebar-right' ? 'row-reverse' : 'row', minHeight: A4_H }}>
@@ -100,7 +129,7 @@ export default function CVPreview({ cv, editable = false, onData, scale = 1, id 
       <div style={{ flex: 1, padding: `${S.pad * 0.7}px ${S.pad * 0.8}px`, display: 'flex', flexDirection: 'column', gap: S.gap }}>
         {mainSections
           .filter(s => !(tpl.headerVariant === 'sidebar' && s.id === 'header'))
-          .map(s => <SectionBlock key={s.id} type={s.id} {...ctx} />)}
+          .map(renderSection)}
       </div>
     </div>
   )
@@ -117,6 +146,70 @@ export default function CVPreview({ cv, editable = false, onData, scale = 1, id 
       }}
     >
       {body}
+    </div>
+  )
+}
+
+// ─── Enveloppe d'une rubrique sur la feuille ────────────────────────────────
+// Ajoute une poignée de déplacement au survol, quand l'aperçu est modifiable.
+// Le contenu lui-même n'est pas déplaçable : la sélection et la modification
+// du texte au clic restent intactes.
+function SectionShell({ id, label, accent, canReorder, drag, setDrag, onMove, children }) {
+  const [hover, setHover] = useState(false)
+  if (!canReorder) return <div>{children}</div>
+
+  const isDragged = drag.from === id
+  const isTarget = drag.over === id && drag.from !== id
+
+  return (
+    <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onDragOver={(e) => {
+        if (!drag.from) return
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'move'
+        if (drag.over !== id) setDrag(d => ({ ...d, over: id }))
+      }}
+      onDrop={(e) => {
+        e.preventDefault()
+        onMove(drag.from, id)
+        setDrag({ from: null, over: null })
+      }}
+      style={{
+        position: 'relative',
+        opacity: isDragged ? 0.35 : 1,
+        boxShadow: isTarget ? `0 -2px 0 0 ${accent}` : undefined,
+        borderRadius: 2,
+        transition: 'opacity .12s',
+      }}
+    >
+      {/* Poignée : seul élément déplaçable, hors du flux et jamais imprimée */}
+      <span
+        className="cv-drag-handle"
+        draggable
+        onDragStart={(e) => {
+          setDrag({ from: id, over: null })
+          e.dataTransfer.effectAllowed = 'move'
+          try { e.dataTransfer.setData('text/plain', id) } catch {}
+        }}
+        onDragEnd={() => setDrag({ from: null, over: null })}
+        title={label ? `Déplacer la rubrique « ${label} »` : 'Déplacer cette rubrique'}
+        aria-hidden="true"
+        style={{
+          position: 'absolute', left: -25, top: 0,
+          width: 19, height: 22,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'grab', userSelect: 'none',
+          color: '#fff', background: accent, borderRadius: 3,
+          fontSize: 11, lineHeight: 1, letterSpacing: -1,
+          opacity: hover || isDragged ? 1 : 0,
+          transition: 'opacity .15s',
+        }}
+      >
+        ⠿
+      </span>
+      {children}
     </div>
   )
 }

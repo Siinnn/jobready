@@ -189,6 +189,8 @@
   body { background: white !important; }
   body * { visibility: hidden; }
   #cv-print-root, #cv-print-root * { visibility: visible; }
+  /* Les poignées de déplacement n'existent qu'à l'écran */
+  .cv-drag-handle { display: none !important; }
   #cv-print-root {
     position: absolute !important;
     left: 0 !important;
