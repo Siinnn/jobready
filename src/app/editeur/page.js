@@ -22,11 +22,14 @@ const ACCENTS = [
   { v: '#111827', n: 'Noir' },
 ]
 
+// Présentés comme des ÉTAPES numérotées (pas de simples onglets) : quelqu'un
+// qui n'a jamais utilisé l'outil doit comprendre, sans rien cliquer, qu'il y a
+// un ordre logique à suivre — même si chaque étape reste accessible librement.
 const TABS = [
-  { id: 'content',  label: 'Contenu',  icon: 'pencil' },
-  { id: 'template', label: 'Modèle',   icon: 'layout' },
-  { id: 'style',    label: 'Style',    icon: 'sliders' },
-  { id: 'check',    label: 'Contrôle', icon: 'shield' },
+  { id: 'content',  label: 'Contenu',  icon: 'pencil',  hint: "Remplissez vos informations, rubrique par rubrique." },
+  { id: 'template', label: 'Modèle',   icon: 'layout',  hint: "Choisissez la mise en page de votre CV." },
+  { id: 'style',    label: 'Style',    icon: 'sliders', hint: "Ajustez couleur, police et taille du texte (facultatif)." },
+  { id: 'check',    label: 'Vérifier', icon: 'shield',  hint: "Contrôlez la qualité de votre CV avant de le télécharger." },
 ]
 
 // Correspondance rubrique → icône au trait
@@ -112,7 +115,7 @@ export default function EditeurPage() {
         <div className="flex items-center gap-2">
           {/* Scores en raccourci */}
           <button onClick={() => setTab('check')}
-            className="hidden lg:flex items-center gap-2.5 px-2.5 py-1.5 text-xs"
+            className="hidden md:flex items-center gap-2.5 px-2.5 py-1.5 text-xs"
             style={{ background: '#eef1f5', borderRadius: 'var(--r-md)' }} title="Voir le détail des contrôles">
             <span style={{ color: 'var(--c-muted)' }}>Qualité <strong style={{ color: 'var(--c-ink)' }}>{score}</strong></span>
             <span className="w-px h-3" style={{ background: 'var(--c-border-strong)' }} />
@@ -133,7 +136,7 @@ export default function EditeurPage() {
           {/* Nombre de pages réel — mesuré sur l'aperçu, identique à l'impression.
               aria-live annonce le changement aux lecteurs d'écran sans être intrusif. */}
           <span aria-live="polite"
-            className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold"
+            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold"
             title={pageInfo.pages > 1 ? "Ce CV s'étendra sur plusieurs pages à l'impression" : "Ce CV tient sur une page à l'impression"}
             style={{
               borderRadius: 'var(--r-md)',
@@ -158,9 +161,9 @@ export default function EditeurPage() {
         {/* ── Panneau gauche ── */}
         <aside className="w-[420px] shrink-0 bg-white flex flex-col print:hidden"
           style={{ borderRight: '1px solid var(--c-border)' }}>
-          {/* Onglets */}
+          {/* Étapes (numérotées : l'ordre suggéré doit se voir sans avoir à cliquer) */}
           <div className="flex shrink-0" style={{ borderBottom: '1px solid var(--c-border)' }} role="tablist">
-            {TABS.map(t => (
+            {TABS.map((t, i) => (
               <button key={t.id} onClick={() => setTab(t.id)} role="tab" aria-selected={tab === t.id}
                 className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold transition-colors"
                 style={{
@@ -168,15 +171,40 @@ export default function EditeurPage() {
                   background: tab === t.id ? 'var(--c-primary-light)' : 'transparent',
                   boxShadow: tab === t.id ? 'inset 0 -2px 0 var(--c-primary)' : 'none',
                 }}>
-                <Icon name={t.icon} size={14} /> {t.label}
+                <span aria-hidden="true" className="w-4 h-4 flex items-center justify-center text-[10px] font-bold shrink-0"
+                  style={{
+                    borderRadius: '50%',
+                    background: tab === t.id ? 'var(--c-primary)' : '#dbe0e8',
+                    color: tab === t.id ? '#fff' : 'var(--c-muted)',
+                  }}>
+                  {i + 1}
+                </span>
+                <Icon name={t.icon} size={14} className="hidden sm:inline" /> {t.label}
               </button>
             ))}
           </div>
+          {/* Rappel en clair de ce que fait l'étape active : évite d'avoir à deviner */}
+          <p className="px-4 py-2 text-xs shrink-0" style={{ color: 'var(--c-muted)', background: '#fbfcfd', borderBottom: '1px solid var(--c-border)' }}>
+            {TABS.find(t => t.id === tab)?.hint}
+          </p>
 
           <div className="flex-1 overflow-y-auto p-4">
             {/* ── Contenu ── */}
             {tab === 'content' && (
               <div className="flex flex-col gap-2">
+                {/* CV tout juste créé : personne n'a besoin d'explication sur le
+                    glisser-déposer avant de savoir par où commencer. */}
+                {!cv.data.firstName && !cv.data.lastName && (cv.data.experiences || []).length === 0 && (
+                  <div className="note note-info mb-1">
+                    <Icon name="wand" size={14} />
+                    <span>
+                      Bienvenue ! Commencez par la rubrique <strong>« En-tête »</strong> ci-dessous
+                      (nom, prénom, contact), puis complétez les autres rubriques dans l'ordre qui
+                      vous convient. Rien n'est obligatoire d'un coup : vous pouvez enregistrer et
+                      revenir plus tard, tout est sauvegardé automatiquement.
+                    </span>
+                  </div>
+                )}
                 <p className="note">
                   <Icon name="sliders" size={14} />
                   <span>
@@ -217,7 +245,7 @@ export default function EditeurPage() {
                           <Icon name={isOpen ? 'chevronDown' : 'chevronRight'} size={14}
                             className="ml-auto" style={{ color: 'var(--c-faint)' }} />
                         </button>
-                        <div className="flex items-center gap-0.5" style={{ color: 'var(--c-faint)' }}>
+                        <div className="flex items-center gap-0.5" style={{ color: 'var(--c-muted)' }}>
                           {s.id !== 'header' && (
                             <IconBtn
                               icon="layout"
