@@ -228,7 +228,10 @@ export default function EditeurPage() {
                           <IconBtn icon="arrowUp" title="Monter" disabled={i === 0} onClick={() => moveSection(s.id, -1)} />
                           <IconBtn icon="arrowDown" title="Descendre" disabled={i === cv.sections.length - 1} onClick={() => moveSection(s.id, 1)} />
                           {!meta.required && (
-                            <IconBtn icon={hidden ? 'eyeOff' : 'eye'} title={hidden ? 'Afficher sur le CV' : 'Masquer du CV'}
+                            <IconBtn icon={hidden ? 'eyeOff' : 'eye'}
+                              title={hidden
+                                ? `Afficher toute la rubrique « ${meta.label} »`
+                                : `Masquer TOUTE la rubrique « ${meta.label} » (pour masquer une seule entrée, ouvrez la rubrique et utilisez « Masquer » sur cette entrée)`}
                               onClick={() => toggleSection(s.id)} />
                           )}
                           {meta.optional && (

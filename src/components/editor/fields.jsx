@@ -254,6 +254,12 @@ export function ListEditor({ label, values = [], onChange, entryType, fields, ad
   return (
     <div>
       {label && <label className="label">{label}</label>}
+      {values.length > 0 && (
+        <p className="text-[11px] mb-2.5 leading-relaxed" style={{ color: 'var(--c-faint)' }}>
+          Un CV trop long ? Utilisez « Masquer » sur une entrée précise ci-dessous — elle disparaît
+          du CV mais reste enregistrée, réaffichable à tout moment.
+        </p>
+      )}
       <div className="flex flex-col gap-3">
         {values.map((entry, i) => {
           const hidden = !!entry.hidden
@@ -274,15 +280,29 @@ export function ListEditor({ label, values = [], onChange, entryType, fields, ad
                   className="px-1 -ml-1 py-0.5 rounded"
                   style={{ letterSpacing: -1, fontSize: 13, color: 'var(--c-faint)' }}>⠿</span>
                 {titleOf ? (titleOf(entry) || `Élément ${i + 1}`) : `Élément ${i + 1}`}
-                {hidden && <span className="badge badge-neutral">masqué</span>}
               </span>
-              <div className="flex gap-0.5 shrink-0" style={{ color: 'var(--c-faint)' }}>
-                <ListBtn icon={hidden ? 'eyeOff' : 'eye'} active={hidden}
-                  title={hidden ? 'Afficher sur le CV' : 'Masquer du CV (sans supprimer)'}
-                  onClick={() => toggleHidden(i)} />
-                <ListBtn icon="arrowUp" title="Monter" disabled={i === 0} onClick={() => move(i, -1)} />
-                <ListBtn icon="arrowDown" title="Descendre" disabled={i === values.length - 1} onClick={() => move(i, 1)} />
-                <ListBtn icon="trash" title="Supprimer définitivement" onClick={() => remove(i)} danger />
+              <div className="flex items-center gap-1 shrink-0">
+                {/* Bouton libellé (pas seulement une icône) : c'est le point le plus
+                    important de cette ligne, il doit se comprendre sans survol. */}
+                <button type="button" onClick={() => toggleHidden(i)}
+                  aria-pressed={hidden}
+                  className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold transition-colors"
+                  style={{
+                    borderRadius: 'var(--r-sm)',
+                    background: hidden ? 'var(--c-primary-light)' : '#eef1f5',
+                    color: hidden ? 'var(--c-primary)' : 'var(--c-muted)',
+                  }}
+                  title={hidden
+                    ? 'Cette entrée est masquée : elle ne figure pas sur le CV, mais reste enregistrée ici. Cliquez pour la réafficher.'
+                    : 'Masquer uniquement cette entrée sur le CV, sans la supprimer — vous pourrez la réafficher à tout moment.'}>
+                  <Icon name={hidden ? 'eyeOff' : 'eye'} size={12} />
+                  {hidden ? 'Masquée' : 'Masquer'}
+                </button>
+                <span style={{ color: 'var(--c-faint)' }} className="flex gap-0.5">
+                  <ListBtn icon="arrowUp" title="Monter" disabled={i === 0} onClick={() => move(i, -1)} />
+                  <ListBtn icon="arrowDown" title="Descendre" disabled={i === values.length - 1} onClick={() => move(i, 1)} />
+                  <ListBtn icon="trash" title="Supprimer définitivement (impossible à annuler)" onClick={() => remove(i)} danger />
+                </span>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
