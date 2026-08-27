@@ -3,12 +3,27 @@
 // Chaque contrôle porte une catégorie : 'contenu' ou 'ats'.
 import { ACTION_VERBS } from '@/lib/skillSuggestions'
 import { getTemplate } from '@/templates'
+import { visibleEntries, visibleStrings } from '@/lib/cvModel'
 
 const hasDigit = (s = '') => /\d/.test(s)
 const words = (s = '') => s.trim().split(/\s+/).filter(Boolean).length
 
+// Le score reflète le CV tel qu'il sera réellement exporté : une entrée
+// masquée (voir cvModel.js) n'est pas prise en compte.
 export function scoreCv(cv) {
-  const d = cv.data || {}
+  const raw = cv.data || {}
+  const d = {
+    ...raw,
+    experiences:    visibleEntries(raw.experiences),
+    education:      visibleEntries(raw.education),
+    certifications: visibleEntries(raw.certifications),
+    projects:       visibleEntries(raw.projects),
+    volunteering:   visibleEntries(raw.volunteering),
+    languages:      visibleEntries(raw.languages),
+    techSkills:     visibleStrings(raw, 'techSkills'),
+    softSkills:     visibleStrings(raw, 'softSkills'),
+    interests:      visibleStrings(raw, 'interests'),
+  }
   const visible = new Set((cv.sections || []).filter(s => s.visible !== false).map(s => s.id))
   const checks = []
   const add = (c) => checks.push({ cat: 'contenu', ...c })

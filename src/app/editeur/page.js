@@ -1,11 +1,12 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useApp } from '@/context/AppContext'
 import CVPreview from '@/components/cv/CVPreview'
 import SectionForm from '@/components/editor/SectionForms'
 import TemplateGallery from '@/components/editor/TemplateGallery'
 import CvCoach from '@/components/ai/CvCoach'
+import CvTrimmer from '@/components/ai/CvTrimmer'
 import Icon from '@/components/ui/Icon'
 import useDragList, { dragStyle } from '@/components/ui/useDragList'
 import ExportPdfButton from '@/components/ui/ExportPdfButton'
@@ -41,6 +42,7 @@ export default function EditeurPage() {
   const [tab, setTab] = useState('content')
   const [openSection, setOpenSection] = useState('header')
   const [zoom, setZoom] = useState(0.7)
+  const [pageInfo, setPageInfo] = useState({ pages: 1 })
 
   useEffect(() => {
     if (isInitialized && !activeCv) router.push('/mes-cv')
@@ -60,6 +62,10 @@ export default function EditeurPage() {
   const upData = (patch) => updateCv(cv.id, c => ({ data: { ...c.data, ...patch } }))
   const upTheme = (patch) => updateCv(cv.id, c => ({ theme: { ...c.theme, ...patch } }))
   const upSections = (fn) => updateCv(cv.id, c => ({ sections: fn(c.sections) }))
+
+  // Mesure réelle du DOM de l'aperçu — voir CVPreview (onPageCount). useCallback
+  // garde une référence stable pour éviter de redéclencher la mesure en boucle.
+  const onPageCount = useCallback((info) => setPageInfo(info), [])
 
   const toggleSection = (id) => upSections(s => s.map(x => x.id === id ? { ...x, visible: x.visible === false } : x))
   // Masquer l'intitulé d'une rubrique sans masquer son contenu
@@ -123,6 +129,25 @@ export default function EditeurPage() {
               className="w-7 h-7 flex items-center justify-center hover:bg-gray-100" title="Agrandir l'aperçu"
               style={{ borderRadius: 'var(--r-sm)' }}>+</button>
           </div>
+
+          {/* Nombre de pages réel — mesuré sur l'aperçu, identique à l'impression.
+              aria-live annonce le changement aux lecteurs d'écran sans être intrusif. */}
+          <span aria-live="polite"
+            className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold"
+            title={pageInfo.pages > 1 ? "Ce CV s'étendra sur plusieurs pages à l'impression" : "Ce CV tient sur une page à l'impression"}
+            style={{
+              borderRadius: 'var(--r-md)',
+              background: pageInfo.pages > 1 ? 'var(--c-warn-bg)' : '#eef1f5',
+              color: pageInfo.pages > 1 ? 'var(--c-warn)' : 'var(--c-muted)',
+            }}>
+            <Icon name={pageInfo.pages > 1 ? 'alert' : 'file'} size={13} />
+            {pageInfo.pages} page{pageInfo.pages > 1 ? 's' : ''}
+          </span>
+
+          {pageInfo.pages > 1 && (
+            <CvTrimmer cv={cv} pages={pageInfo.pages}
+              onApply={patch => updateCv(cv.id, c => ({ data: { ...c.data, ...patch } }))} />
+          )}
 
           <ExportPdfButton label="Télécharger en PDF" documentLabel="votre CV"
             fileName={`CV ${[cv.data?.firstName, cv.data?.lastName].filter(Boolean).join(' ') || cv.name}`.trim()} />
@@ -338,7 +363,21 @@ export default function EditeurPage() {
 
             {/* ── Contrôle ── */}
             {tab === 'check' && (
-              <CvCoach cv={cv} onGoto={(id) => { setTab('content'); setOpenSection(id) }} />
+              <div className="flex flex-col gap-5">
+                <div className="p-3 flex items-center justify-between gap-3 flex-wrap"
+                  style={{ border: '1px solid var(--c-border)', borderRadius: 'var(--r-md)' }}>
+                  <div>
+                    <span className="label !mb-0.5">Longueur à l'impression</span>
+                    <p className="text-sm font-semibold" style={{ color: pageInfo.pages > 1 ? 'var(--c-warn)' : 'var(--c-success)' }}>
+                      {pageInfo.pages} page{pageInfo.pages > 1 ? 's' : ''}
+                      {pageInfo.pages > 1 && <span className="font-normal" style={{ color: 'var(--c-muted)' }}> — un CV d'une page est en général préférable</span>}
+                    </p>
+                  </div>
+                  <CvTrimmer cv={cv} pages={pageInfo.pages}
+                    onApply={patch => updateCv(cv.id, c => ({ data: { ...c.data, ...patch } }))} />
+                </div>
+                <CvCoach cv={cv} onGoto={(id) => { setTab('content'); setOpenSection(id) }} />
+              </div>
             )}
           </div>
         </aside>
@@ -347,7 +386,8 @@ export default function EditeurPage() {
         <div className="flex-1 overflow-auto flex justify-center py-8 px-4 print:p-0 print:overflow-visible">
           <div style={{ width: 794 * zoom, height: 'fit-content' }}>
             <CVPreview cv={cv} editable onData={upData} scale={zoom}
-              onReorder={(sections) => updateCv(cv.id, { sections })} />
+              onReorder={(sections) => updateCv(cv.id, { sections })}
+              pageGuides onPageCount={onPageCount} />
           </div>
         </div>
       </div>

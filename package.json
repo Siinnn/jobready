@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.3",
-    "next": "14.2.5",
+    "next": "14.2.35",
     "pdf-parse": "1.1.4",
     "pdfmake": "^0.2.10",
     "react": "^18",

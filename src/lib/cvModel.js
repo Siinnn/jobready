@@ -117,3 +117,47 @@ export const EMPTY_ENTRIES = {
   certifications: { name: '', issuer: '', year: '' },
   volunteering:   { role: '', organization: '', period: '', description: '' },
 }
+
+// ─── Masquage d'une entrée précise (sans la supprimer) ──────────────────────
+// Deux familles de champs, deux mécanismes — chacun conçu pour survivre au
+// réordonnancement et à l'ajout/suppression d'autres entrées :
+//
+//  • Listes d'objets (experiences, education, projects, certifications,
+//    volunteering, languages) : le marqueur `hidden` voyage AVEC l'entrée,
+//    directement sur l'objet. Pas d'index à tenir à jour.
+//  • Listes de chaînes (techSkills, softSkills, interests) : les valeurs sont
+//    uniques par champ (l'ajout empêche les doublons), donc un ensemble de
+//    valeurs masquées — `data.hidden[champ]` — suffit et reste valide même
+//    si la liste est réordonnée.
+//
+// Dans les deux cas, la donnée n'est JAMAIS supprimée : seule sa présence sur
+// le CV exporté/imprimé est désactivée. L'utilisateur peut la réafficher à
+// tout moment depuis le panneau d'édition.
+
+// Listes d'objets : entrée masquée ?
+export const isEntryHidden = (entry) => !!entry?.hidden
+
+// Listes d'objets : ne garder que les entrées visibles (aperçu, export, score)
+export const visibleEntries = (list = []) => list.filter(e => !isEntryHidden(e))
+
+// Listes d'objets : bascule le masquage d'une entrée par son index courant
+export function toggleEntryHidden(list = [], index) {
+  return list.map((e, i) => i === index ? { ...e, hidden: !e.hidden } : e)
+}
+
+// Listes de chaînes : valeurs actuellement masquées pour un champ donné
+export const hiddenStrings = (d, field) => new Set(d?.hidden?.[field] || [])
+
+// Listes de chaînes : ne garder que les valeurs visibles
+export function visibleStrings(d, field) {
+  const hidden = hiddenStrings(d, field)
+  return (d?.[field] || []).filter(v => !hidden.has(v))
+}
+
+// Listes de chaînes : bascule le masquage d'une valeur — renvoie le patch
+// à fusionner dans data (ex. upData(toggleStringHidden(d, 'techSkills', v)))
+export function toggleStringHidden(d, field, value) {
+  const hidden = hiddenStrings(d, field)
+  hidden.has(value) ? hidden.delete(value) : hidden.add(value)
+  return { hidden: { ...(d?.hidden || {}), [field]: [...hidden] } }
+}
