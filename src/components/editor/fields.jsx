@@ -41,9 +41,10 @@ export function TextArea({ label, hint, value, onChange, placeholder, rows = 4, 
 // ─── Saisie de tags (compétences, centres d'intérêt) ────────────────────────
 // L'ordre de saisie est conservé et modifiable : les premières compétences
 // listées sont celles que le recruteur lit en premier.
-export function TagInput({ label, hint, values = [], onChange, placeholder = 'Ajouter puis Entrée', suggestions = [] }) {
+export function TagInput({ label, hint, values = [], onChange, placeholder = 'Ajouter puis Entrée', suggestions = [], hiddenValues, onToggleHidden }) {
   const [draft, setDraft] = useState('')
   const drag = useDragList(values, onChange, (v) => v)
+  const hiddenSet = hiddenValues instanceof Set ? hiddenValues : new Set(hiddenValues || [])
 
   const add = (v) => {
     const t = v.trim()
@@ -59,18 +60,30 @@ export function TagInput({ label, hint, values = [], onChange, placeholder = 'Aj
     <Field label={label} hint={hint}>
       <div className="input flex flex-wrap gap-1.5 items-center cursor-text !py-1.5"
         onClick={e => e.currentTarget.querySelector('input')?.focus()}>
-        {values.map((v, i) => (
-          <span key={v} {...drag.dropProps(i)} {...drag.handleProps(i)}
-            title="Glisser pour changer l'ordre"
-            className="badge badge-primary gap-1"
-            style={{ cursor: 'grab', ...dragStyle({ dragging: drag.isDragging(i), over: drag.isOver(i) }) }}>
-            {v}
-            <button type="button" onClick={() => remove(i)} aria-label={`Retirer ${v}`}
-              className="leading-none opacity-60 hover:opacity-100">
-              <Icon name="close" size={10} strokeWidth={2.4} />
-            </button>
-          </span>
-        ))}
+        {values.map((v, i) => {
+          const hidden = hiddenSet.has(v)
+          return (
+            <span key={v} {...drag.dropProps(i)} {...drag.handleProps(i)}
+              title="Glisser pour changer l'ordre"
+              className={hidden ? 'badge badge-neutral gap-1' : 'badge badge-primary gap-1'}
+              style={{ cursor: 'grab', opacity: hidden ? 0.6 : 1, ...dragStyle({ dragging: drag.isDragging(i), over: drag.isOver(i) }) }}>
+              {v}
+              {hidden && <span className="text-[10px] font-normal">(masqué)</span>}
+              {onToggleHidden && (
+                <button type="button" onClick={() => onToggleHidden(v)}
+                  aria-label={hidden ? `Afficher « ${v} » sur le CV` : `Masquer « ${v} » du CV`}
+                  title={hidden ? 'Afficher sur le CV' : 'Masquer du CV (sans le supprimer)'}
+                  className="leading-none opacity-60 hover:opacity-100">
+                  <Icon name={hidden ? 'eyeOff' : 'eye'} size={10} strokeWidth={2.4} />
+                </button>
+              )}
+              <button type="button" onClick={() => remove(i)} aria-label={`Supprimer « ${v} » définitivement`}
+                className="leading-none opacity-60 hover:opacity-100">
+                <Icon name="close" size={10} strokeWidth={2.4} />
+              </button>
+            </span>
+          )
+        })}
         <input
           className="flex-1 min-w-[120px] outline-none text-sm bg-transparent"
           value={draft} placeholder={values.length === 0 ? placeholder : ''}
@@ -234,16 +247,28 @@ export function ListEditor({ label, values = [], onChange, entryType, fields, ad
     ;[arr[i], arr[j]] = [arr[j], arr[i]]
     onChange(arr)
   }
+  // Masquer une entrée la retire de l'aperçu et de l'export, SANS la
+  // supprimer : elle reste modifiable ici et peut être réaffichée à tout moment.
+  const toggleHidden = (i) => onChange(values.map((e, j) => j === i ? { ...e, hidden: !e.hidden } : e))
 
   return (
     <div>
       {label && <label className="label">{label}</label>}
+      {values.length > 0 && (
+        <p className="text-[11px] mb-2.5 leading-relaxed" style={{ color: 'var(--c-faint)' }}>
+          Un CV trop long ? Utilisez « Masquer » sur une entrée précise ci-dessous — elle disparaît
+          du CV mais reste enregistrée, réaffichable à tout moment.
+        </p>
+      )}
       <div className="flex flex-col gap-3">
-        {values.map((entry, i) => (
+        {values.map((entry, i) => {
+          const hidden = !!entry.hidden
+          return (
           <div key={i} className="p-4"
             {...drag.dropProps(i)}
             style={{
               background: '#fff', border: '1px solid var(--c-border)', borderRadius: 'var(--r-md)',
+              opacity: hidden ? 0.6 : 1,
               ...dragStyle({ dragging: drag.isDragging(i), over: drag.isOver(i) }),
             }}>
             <div className="flex items-center justify-between gap-2 mb-3">
@@ -256,10 +281,28 @@ export function ListEditor({ label, values = [], onChange, entryType, fields, ad
                   style={{ letterSpacing: -1, fontSize: 13, color: 'var(--c-faint)' }}>⠿</span>
                 {titleOf ? (titleOf(entry) || `Élément ${i + 1}`) : `Élément ${i + 1}`}
               </span>
-              <div className="flex gap-0.5 shrink-0" style={{ color: 'var(--c-faint)' }}>
-                <ListBtn icon="arrowUp" title="Monter" disabled={i === 0} onClick={() => move(i, -1)} />
-                <ListBtn icon="arrowDown" title="Descendre" disabled={i === values.length - 1} onClick={() => move(i, 1)} />
-                <ListBtn icon="trash" title="Supprimer" onClick={() => remove(i)} danger />
+              <div className="flex items-center gap-1 shrink-0">
+                {/* Bouton libellé (pas seulement une icône) : c'est le point le plus
+                    important de cette ligne, il doit se comprendre sans survol. */}
+                <button type="button" onClick={() => toggleHidden(i)}
+                  aria-pressed={hidden}
+                  className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold transition-colors"
+                  style={{
+                    borderRadius: 'var(--r-sm)',
+                    background: hidden ? 'var(--c-primary-light)' : '#eef1f5',
+                    color: hidden ? 'var(--c-primary)' : 'var(--c-muted)',
+                  }}
+                  title={hidden
+                    ? 'Cette entrée est masquée : elle ne figure pas sur le CV, mais reste enregistrée ici. Cliquez pour la réafficher.'
+                    : 'Masquer uniquement cette entrée sur le CV, sans la supprimer — vous pourrez la réafficher à tout moment.'}>
+                  <Icon name={hidden ? 'eyeOff' : 'eye'} size={12} />
+                  {hidden ? 'Masquée' : 'Masquer'}
+                </button>
+                <span style={{ color: 'var(--c-faint)' }} className="flex gap-0.5">
+                  <ListBtn icon="arrowUp" title="Monter" disabled={i === 0} onClick={() => move(i, -1)} />
+                  <ListBtn icon="arrowDown" title="Descendre" disabled={i === values.length - 1} onClick={() => move(i, 1)} />
+                  <ListBtn icon="trash" title="Supprimer définitivement (impossible à annuler)" onClick={() => remove(i)} danger />
+                </span>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -283,7 +326,7 @@ export function ListEditor({ label, values = [], onChange, entryType, fields, ad
               ))}
             </div>
           </div>
-        ))}
+        )})}
       </div>
       <button type="button" onClick={add}
         className="mt-3 w-full flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold transition-colors"
@@ -294,14 +337,19 @@ export function ListEditor({ label, values = [], onChange, entryType, fields, ad
   )
 }
 
-function ListBtn({ icon, title, onClick, disabled, danger }) {
+function ListBtn({ icon, title, onClick, disabled, danger, active }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled} title={title} aria-label={title}
+      aria-pressed={active === undefined ? undefined : active}
       className="w-7 h-7 flex items-center justify-center transition-colors disabled:opacity-25"
-      style={{ borderRadius: 'var(--r-sm)' }}
-      onMouseEnter={e => !disabled && (e.currentTarget.style.background = danger ? 'var(--c-danger-bg)' : '#eef1f5',
+      style={{
+        borderRadius: 'var(--r-sm)',
+        background: active ? 'var(--c-primary-light)' : 'transparent',
+        color: active ? 'var(--c-primary)' : 'inherit',
+      }}
+      onMouseEnter={e => !disabled && !active && (e.currentTarget.style.background = danger ? 'var(--c-danger-bg)' : '#eef1f5',
         e.currentTarget.style.color = danger ? 'var(--c-danger)' : 'var(--c-ink)')}
-      onMouseLeave={e => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = 'inherit')}>
+      onMouseLeave={e => (e.currentTarget.style.background = active ? 'var(--c-primary-light)' : 'transparent', e.currentTarget.style.color = active ? 'var(--c-primary)' : 'inherit')}>
       <Icon name={icon} size={13} />
     </button>
   )

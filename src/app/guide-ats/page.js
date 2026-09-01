@@ -45,9 +45,9 @@ export default function GuideAtsPage() {
 
       <main>
         <section className="bg-white" style={{ borderBottom: '1px solid var(--c-border)' }}>
-          <div className="max-w-3xl mx-auto px-6 py-11">
+          <div className="max-w-3xl mx-auto px-6 py-11 hero-in">
             <span className="badge badge-primary mb-3">Guide pratique</span>
-            <h1 className="text-2xl md:text-[30px] font-semibold leading-tight">
+            <h1 className="font-display font-semibold leading-tight" style={{ fontSize: 'clamp(1.6rem, 3.4vw, 2.15rem)' }}>
               Qu'est-ce qu'un CV « compatible ATS » ?
             </h1>
             <p className="mt-4 leading-relaxed" style={{ color: 'var(--c-body)' }}>
@@ -102,7 +102,7 @@ export default function GuideAtsPage() {
             <h2 className="text-base font-semibold mb-3">Comment l'outil vous aide</h2>
             <ul className="flex flex-col gap-3">
               {[
-                { icon: 'layout', text: <>Quatre des six modèles proposés sont sur une seule colonne. Le modèle <strong>Simple ATS</strong> est le plus sûr pour un dépôt sur un site d'offres ; les modèles à colonne latérale conviennent mieux à une candidature remise en main propre ou par email.</> },
+                { icon: 'layout', text: <>Six des neuf modèles proposés sont sur une seule colonne. Le modèle <strong>Simple ATS</strong> est le plus sûr pour un dépôt sur un site d'offres ; les modèles à colonne latérale conviennent mieux à une candidature remise en main propre ou par email.</> },
                 { icon: 'shield', text: <>L'onglet <strong>Contrôle</strong> de l'éditeur affiche un score de lisibilité ATS et signale précisément ce qui bloque : titre trop long, compétences absentes, dates manquantes, mise en page à risque.</> },
                 { icon: 'download', text: <>L'export produit un <strong>PDF texte</strong>, dont le contenu reste sélectionnable et donc lisible par les logiciels.</> },
                 { icon: 'pencil', text: <>L'aide à la rédaction vous propose des formulations plus précises, sans jargon, avec des verbes d'action et des résultats concrets.</> },

@@ -2,7 +2,7 @@ import { AppProvider } from '@/context/AppContext'
 import './globals.css'
 
 const TITLE = 'JobReady — CV et lettres de motivation, compatibles ATS'
-const DESCRIPTION = "Créez votre CV rubrique par rubrique et rédigez vos lettres de motivation : six modèles professionnels, vérification de lisibilité par les logiciels de recrutement (ATS) et aide à la rédaction."
+const DESCRIPTION = "Créez votre CV rubrique par rubrique et rédigez vos lettres de motivation : neuf modèles professionnels, vérification de lisibilité par les logiciels de recrutement (ATS) et aide à la rédaction."
 
 export const metadata = {
   title: {
@@ -37,7 +37,7 @@ export default function RootLayout({ children }) {
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:wght@500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body>
         <AppProvider>

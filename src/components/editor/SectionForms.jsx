@@ -2,6 +2,7 @@
 import { TextInput, TextArea, TagInput, ListEditor, LIST_FIELDS, LIST_TITLES } from '@/components/editor/fields'
 import { SummaryGenerator, AIRewriteButton } from '@/components/ai/AIHelpers'
 import { SKILL_SUGGESTIONS } from '@/lib/skillSuggestions'
+import { hiddenStrings, toggleStringHidden } from '@/lib/cvModel'
 
 // Formulaire d'édition pour une section donnée.
 // d : cv.data — upData(patch) : fusionne dans data
@@ -70,10 +71,14 @@ export default function SectionForm({ type, d, upData }) {
         <div className="flex flex-col gap-4">
           <TagInput label="Compétences techniques / métier" values={d.techSkills}
             onChange={v => upData({ techSkills: v })}
-            suggestions={SKILL_SUGGESTIONS.forJob(d.title).tech} />
+            suggestions={SKILL_SUGGESTIONS.forJob(d.title).tech}
+            hiddenValues={hiddenStrings(d, 'techSkills')}
+            onToggleHidden={v => upData(toggleStringHidden(d, 'techSkills', v))} />
           <TagInput label="Qualités personnelles" values={d.softSkills}
             onChange={v => upData({ softSkills: v })}
-            suggestions={SKILL_SUGGESTIONS.forJob(d.title).soft} />
+            suggestions={SKILL_SUGGESTIONS.forJob(d.title).soft}
+            hiddenValues={hiddenStrings(d, 'softSkills')}
+            onToggleHidden={v => upData(toggleStringHidden(d, 'softSkills', v))} />
         </div>
       )
 
@@ -109,7 +114,9 @@ export default function SectionForm({ type, d, upData }) {
       return (
         <TagInput label="Centres d'intérêt" values={d.interests}
           onChange={v => upData({ interests: v })}
-          placeholder="Ex : Football, cuisine…" />
+          placeholder="Ex : Football, cuisine…"
+          hiddenValues={hiddenStrings(d, 'interests')}
+          onToggleHidden={v => upData(toggleStringHidden(d, 'interests', v))} />
       )
 
     default:

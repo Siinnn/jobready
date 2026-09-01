@@ -1,11 +1,12 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useApp } from '@/context/AppContext'
 import CVPreview from '@/components/cv/CVPreview'
 import SectionForm from '@/components/editor/SectionForms'
 import TemplateGallery from '@/components/editor/TemplateGallery'
 import CvCoach from '@/components/ai/CvCoach'
+import CvTrimmer from '@/components/ai/CvTrimmer'
 import Icon from '@/components/ui/Icon'
 import useDragList, { dragStyle } from '@/components/ui/useDragList'
 import ExportPdfButton from '@/components/ui/ExportPdfButton'
@@ -21,11 +22,14 @@ const ACCENTS = [
   { v: '#111827', n: 'Noir' },
 ]
 
+// Présentés comme des ÉTAPES numérotées (pas de simples onglets) : quelqu'un
+// qui n'a jamais utilisé l'outil doit comprendre, sans rien cliquer, qu'il y a
+// un ordre logique à suivre — même si chaque étape reste accessible librement.
 const TABS = [
-  { id: 'content',  label: 'Contenu',  icon: 'pencil' },
-  { id: 'template', label: 'Modèle',   icon: 'layout' },
-  { id: 'style',    label: 'Style',    icon: 'sliders' },
-  { id: 'check',    label: 'Contrôle', icon: 'shield' },
+  { id: 'content',  label: 'Contenu',  icon: 'pencil',  hint: "Remplissez vos informations, rubrique par rubrique." },
+  { id: 'template', label: 'Modèle',   icon: 'layout',  hint: "Choisissez la mise en page de votre CV." },
+  { id: 'style',    label: 'Style',    icon: 'sliders', hint: "Ajustez couleur, police et taille du texte (facultatif)." },
+  { id: 'check',    label: 'Vérifier', icon: 'shield',  hint: "Contrôlez la qualité de votre CV avant de le télécharger." },
 ]
 
 // Correspondance rubrique → icône au trait
@@ -41,6 +45,23 @@ export default function EditeurPage() {
   const [tab, setTab] = useState('content')
   const [openSection, setOpenSection] = useState('header')
   const [zoom, setZoom] = useState(0.7)
+  const [pageInfo, setPageInfo] = useState({ pages: 1 })
+
+  // Mesure réelle du DOM de l'aperçu — voir CVPreview (onPageCount). useCallback
+  // garde une référence stable pour éviter de redéclencher la mesure en boucle.
+  // Déclaré ICI (avant le retour anticipé ci-dessous), de même que useDragList
+  // juste après : les Hooks doivent s'exécuter dans le même ordre à chaque
+  // rendu, y compris pendant le chargement initial où activeCv n'est pas
+  // encore disponible (d'où les valeurs de repli ci-dessous).
+  const onPageCount = useCallback((info) => setPageInfo(info), [])
+
+  // Glisser-déposer des rubriques (les flèches restent l'équivalent clavier).
+  // Repli sur un tableau vide tant que activeCv n'est pas chargé.
+  const drag = useDragList(
+    activeCv?.sections || [],
+    (arr) => activeCv && updateCv(activeCv.id, { sections: arr }),
+    (s) => s.id,
+  )
 
   useEffect(() => {
     if (isInitialized && !activeCv) router.push('/mes-cv')
@@ -75,9 +96,6 @@ export default function EditeurPage() {
   const removeSection = (id) => upSections(s => s.filter(x => x.id !== id))
   const missing = Object.keys(SECTION_TYPES).filter(t => SECTION_TYPES[t].optional && !cv.sections.some(s => s.id === t))
 
-  // Glisser-déposer des rubriques (les flèches restent l'équivalent clavier)
-  const drag = useDragList(cv.sections, (arr) => updateCv(cv.id, { sections: arr }), (s) => s.id)
-
   return (
     <div className="h-screen flex flex-col">
       {/* ── Barre du haut ── */}
@@ -106,7 +124,7 @@ export default function EditeurPage() {
         <div className="flex items-center gap-2">
           {/* Scores en raccourci */}
           <button onClick={() => setTab('check')}
-            className="hidden lg:flex items-center gap-2.5 px-2.5 py-1.5 text-xs"
+            className="hidden md:flex items-center gap-2.5 px-2.5 py-1.5 text-xs"
             style={{ background: '#eef1f5', borderRadius: 'var(--r-md)' }} title="Voir le détail des contrôles">
             <span style={{ color: 'var(--c-muted)' }}>Qualité <strong style={{ color: 'var(--c-ink)' }}>{score}</strong></span>
             <span className="w-px h-3" style={{ background: 'var(--c-border-strong)' }} />
@@ -124,6 +142,25 @@ export default function EditeurPage() {
               style={{ borderRadius: 'var(--r-sm)' }}>+</button>
           </div>
 
+          {/* Nombre de pages réel — mesuré sur l'aperçu, identique à l'impression.
+              aria-live annonce le changement aux lecteurs d'écran sans être intrusif. */}
+          <span aria-live="polite"
+            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold"
+            title={pageInfo.pages > 1 ? "Ce CV s'étendra sur plusieurs pages à l'impression" : "Ce CV tient sur une page à l'impression"}
+            style={{
+              borderRadius: 'var(--r-md)',
+              background: pageInfo.pages > 1 ? 'var(--c-warn-bg)' : '#eef1f5',
+              color: pageInfo.pages > 1 ? 'var(--c-warn)' : 'var(--c-muted)',
+            }}>
+            <Icon name={pageInfo.pages > 1 ? 'alert' : 'file'} size={13} />
+            {pageInfo.pages} page{pageInfo.pages > 1 ? 's' : ''}
+          </span>
+
+          {pageInfo.pages > 1 && (
+            <CvTrimmer cv={cv} pages={pageInfo.pages}
+              onApply={patch => updateCv(cv.id, c => ({ data: { ...c.data, ...patch } }))} />
+          )}
+
           <ExportPdfButton label="Télécharger en PDF" documentLabel="votre CV"
             fileName={`CV ${[cv.data?.firstName, cv.data?.lastName].filter(Boolean).join(' ') || cv.name}`.trim()} />
         </div>
@@ -133,9 +170,9 @@ export default function EditeurPage() {
         {/* ── Panneau gauche ── */}
         <aside className="w-[420px] shrink-0 bg-white flex flex-col print:hidden"
           style={{ borderRight: '1px solid var(--c-border)' }}>
-          {/* Onglets */}
+          {/* Étapes (numérotées : l'ordre suggéré doit se voir sans avoir à cliquer) */}
           <div className="flex shrink-0" style={{ borderBottom: '1px solid var(--c-border)' }} role="tablist">
-            {TABS.map(t => (
+            {TABS.map((t, i) => (
               <button key={t.id} onClick={() => setTab(t.id)} role="tab" aria-selected={tab === t.id}
                 className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold transition-colors"
                 style={{
@@ -143,15 +180,40 @@ export default function EditeurPage() {
                   background: tab === t.id ? 'var(--c-primary-light)' : 'transparent',
                   boxShadow: tab === t.id ? 'inset 0 -2px 0 var(--c-primary)' : 'none',
                 }}>
-                <Icon name={t.icon} size={14} /> {t.label}
+                <span aria-hidden="true" className="w-4 h-4 flex items-center justify-center text-[10px] font-bold shrink-0"
+                  style={{
+                    borderRadius: '50%',
+                    background: tab === t.id ? 'var(--c-primary)' : '#dbe0e8',
+                    color: tab === t.id ? '#fff' : 'var(--c-muted)',
+                  }}>
+                  {i + 1}
+                </span>
+                <Icon name={t.icon} size={14} className="hidden sm:inline" /> {t.label}
               </button>
             ))}
           </div>
+          {/* Rappel en clair de ce que fait l'étape active : évite d'avoir à deviner */}
+          <p className="px-4 py-2 text-xs shrink-0" style={{ color: 'var(--c-muted)', background: '#fbfcfd', borderBottom: '1px solid var(--c-border)' }}>
+            {TABS.find(t => t.id === tab)?.hint}
+          </p>
 
           <div className="flex-1 overflow-y-auto p-4">
             {/* ── Contenu ── */}
             {tab === 'content' && (
               <div className="flex flex-col gap-2">
+                {/* CV tout juste créé : personne n'a besoin d'explication sur le
+                    glisser-déposer avant de savoir par où commencer. */}
+                {!cv.data.firstName && !cv.data.lastName && (cv.data.experiences || []).length === 0 && (
+                  <div className="note note-info mb-1">
+                    <Icon name="wand" size={14} />
+                    <span>
+                      Bienvenue ! Commencez par la rubrique <strong>« En-tête »</strong> ci-dessous
+                      (nom, prénom, contact), puis complétez les autres rubriques dans l'ordre qui
+                      vous convient. Rien n'est obligatoire d'un coup : vous pouvez enregistrer et
+                      revenir plus tard, tout est sauvegardé automatiquement.
+                    </span>
+                  </div>
+                )}
                 <p className="note">
                   <Icon name="sliders" size={14} />
                   <span>
@@ -192,7 +254,7 @@ export default function EditeurPage() {
                           <Icon name={isOpen ? 'chevronDown' : 'chevronRight'} size={14}
                             className="ml-auto" style={{ color: 'var(--c-faint)' }} />
                         </button>
-                        <div className="flex items-center gap-0.5" style={{ color: 'var(--c-faint)' }}>
+                        <div className="flex items-center gap-0.5" style={{ color: 'var(--c-muted)' }}>
                           {s.id !== 'header' && (
                             <IconBtn
                               icon="layout"
@@ -203,7 +265,10 @@ export default function EditeurPage() {
                           <IconBtn icon="arrowUp" title="Monter" disabled={i === 0} onClick={() => moveSection(s.id, -1)} />
                           <IconBtn icon="arrowDown" title="Descendre" disabled={i === cv.sections.length - 1} onClick={() => moveSection(s.id, 1)} />
                           {!meta.required && (
-                            <IconBtn icon={hidden ? 'eyeOff' : 'eye'} title={hidden ? 'Afficher sur le CV' : 'Masquer du CV'}
+                            <IconBtn icon={hidden ? 'eyeOff' : 'eye'}
+                              title={hidden
+                                ? `Afficher toute la rubrique « ${meta.label} »`
+                                : `Masquer TOUTE la rubrique « ${meta.label} » (pour masquer une seule entrée, ouvrez la rubrique et utilisez « Masquer » sur cette entrée)`}
                               onClick={() => toggleSection(s.id)} />
                           )}
                           {meta.optional && (
@@ -338,7 +403,21 @@ export default function EditeurPage() {
 
             {/* ── Contrôle ── */}
             {tab === 'check' && (
-              <CvCoach cv={cv} onGoto={(id) => { setTab('content'); setOpenSection(id) }} />
+              <div className="flex flex-col gap-5">
+                <div className="p-3 flex items-center justify-between gap-3 flex-wrap"
+                  style={{ border: '1px solid var(--c-border)', borderRadius: 'var(--r-md)' }}>
+                  <div>
+                    <span className="label !mb-0.5">Longueur à l'impression</span>
+                    <p className="text-sm font-semibold" style={{ color: pageInfo.pages > 1 ? 'var(--c-warn)' : 'var(--c-success)' }}>
+                      {pageInfo.pages} page{pageInfo.pages > 1 ? 's' : ''}
+                      {pageInfo.pages > 1 && <span className="font-normal" style={{ color: 'var(--c-muted)' }}> — un CV d'une page est en général préférable</span>}
+                    </p>
+                  </div>
+                  <CvTrimmer cv={cv} pages={pageInfo.pages}
+                    onApply={patch => updateCv(cv.id, c => ({ data: { ...c.data, ...patch } }))} />
+                </div>
+                <CvCoach cv={cv} onGoto={(id) => { setTab('content'); setOpenSection(id) }} />
+              </div>
             )}
           </div>
         </aside>
@@ -347,7 +426,8 @@ export default function EditeurPage() {
         <div className="flex-1 overflow-auto flex justify-center py-8 px-4 print:p-0 print:overflow-visible">
           <div style={{ width: 794 * zoom, height: 'fit-content' }}>
             <CVPreview cv={cv} editable onData={upData} scale={zoom}
-              onReorder={(sections) => updateCv(cv.id, { sections })} />
+              onReorder={(sections) => updateCv(cv.id, { sections })}
+              pageGuides onPageCount={onPageCount} />
           </div>
         </div>
       </div>

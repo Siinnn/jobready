@@ -97,6 +97,53 @@ export const TEMPLATES = {
       sections: ['contact', 'skills', 'languages', 'certifications'],
     },
   },
+
+  elegant: {
+    id: 'elegant',
+    name: 'Élégant',
+    icon: '🖋️',
+    description: 'Typographie mixte raffinée, titres en majuscules espacées.',
+    tags: ['classique', 'creatif'],
+    layout: 'single',
+    defaultAccent: '#9d174d',
+    defaultFont: 'mixte',
+    headerVariant: 'underline',
+    titleVariant: 'caps',
+  },
+
+  corporate: {
+    id: 'corporate',
+    name: 'Corporate',
+    icon: '🏢',
+    description: 'Bandeau en tête, dates alignées en colonne : profils encadrement et cadres.',
+    tags: ['classique', 'moderne'],
+    layout: 'single',
+    defaultAccent: '#1e3a5f',
+    defaultFont: 'serif',
+    headerVariant: 'band',
+    titleVariant: 'underline',
+    timeline: true,
+  },
+
+  clair: {
+    id: 'clair',
+    name: 'Épuré clair',
+    icon: '🪶',
+    description: 'Colonne latérale gauche claire et aérée, alternative au modèle Designer.',
+    tags: ['creatif', 'moderne'],
+    layout: 'sidebar-left',
+    defaultAccent: '#0f766e',
+    defaultFont: 'sans',
+    headerVariant: 'plain',
+    titleVariant: 'underline',
+    sidebar: {
+      bg: '#eef2f7',
+      text: '#374151',
+      muted: '#6b7280',
+      width: 235,
+      sections: ['contact', 'skills', 'languages', 'interests'],
+    },
+  },
 }
 
 export const TEMPLATE_LIST = Object.values(TEMPLATES)

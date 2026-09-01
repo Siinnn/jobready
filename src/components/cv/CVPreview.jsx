@@ -1,7 +1,7 @@
 'use client'
 import { useRef, useEffect, useState } from 'react'
 import { getTemplate, getAccent, getSidebarBg } from '@/templates'
-import { FONTS, SECTION_TYPES } from '@/lib/cvModel'
+import { FONTS, SECTION_TYPES, visibleEntries, visibleStrings } from '@/lib/cvModel'
 
 // Dimensions A4 à 96 dpi
 export const A4_W = 794
@@ -41,8 +41,13 @@ function E({ value, onChange, tag: Tag = 'span', style, placeholder, block }) {
 // editable : active l'édition inline au clic
 // onData   : (patch) => void — fusionné dans cv.data
 // scale    : zoom d'affichage (1 = 100 %)
-export default function CVPreview({ cv, editable = false, onData, onReorder, scale = 1, id = 'cv-print-root' }) {
+export default function CVPreview({
+  cv, editable = false, onData, onReorder, scale = 1, id = 'cv-print-root',
+  pageGuides = false, onPageCount,
+}) {
   const [dragState, setDragState] = useState({ from: null, over: null })
+  const rootRef = useRef(null)
+  const [pageHeight, setPageHeight] = useState(0)
   // Déplacement d'une entrée à l'intérieur d'une rubrique (une expérience,
   // une formation…) : { field, from, over }
   const [entryDrag, setEntryDrag] = useState({ field: null, from: null, over: null })
@@ -99,6 +104,26 @@ export default function CVPreview({ cv, editable = false, onData, onReorder, sca
   const entryCtx = { moveEntry, entryDrag, setEntryDrag, accent }
   const ctx = { d, tpl, accent, S, sp, up, upArr, editable, contactInSidebar, ...entryCtx }
 
+  // ── Mesure de la hauteur réelle rendue, pour savoir combien de pages A4
+  // le CV occupera réellement à l'impression (voir @page A4 en CSS print).
+  // La mesure porte sur le DOM non transformé : le zoom d'affichage (scale)
+  // n'affecte donc pas le résultat.
+  useEffect(() => {
+    const el = rootRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const measure = () => setPageHeight(el.scrollHeight)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [cv])
+
+  useEffect(() => {
+    if (!onPageCount || !pageHeight) return
+    const pages = Math.max(1, Math.ceil((pageHeight - 1) / A4_H))
+    onPageCount({ pages, heightPx: pageHeight, pageHeightPx: A4_H, overflowPx: Math.max(0, pageHeight - A4_H) })
+  }, [pageHeight, onPageCount])
+
   // Réordonnancement directement sur la feuille : une poignée apparaît au
   // survol de chaque rubrique. Seule la poignée est déplaçable, afin de ne pas
   // gêner la sélection et la modification du texte au clic.
@@ -149,18 +174,49 @@ export default function CVPreview({ cv, editable = false, onData, onReorder, sca
     </div>
   )
 
+  const pageCount = pageHeight ? Math.max(1, Math.ceil((pageHeight - 1) / A4_H)) : 1
+
   return (
     <div
       id={id}
+      ref={rootRef}
       className="cv-sheet"
       style={{
-        width: A4_W, minHeight: A4_H, background: 'white',
+        width: A4_W, minHeight: A4_H, background: 'white', position: 'relative',
         fontFamily: font, color: '#111827', boxSizing: 'border-box',
         transform: scale !== 1 ? `scale(${scale})` : undefined,
         transformOrigin: 'top left',
       }}
     >
       {body}
+      {pageGuides && <PageGuides pageCount={pageCount} />}
+    </div>
+  )
+}
+
+// ─── Repères de pagination (écran uniquement, jamais imprimés) ──────────────
+// Une ligne pointillée à chaque limite de page A4, et une zone teintée sur
+// tout ce qui déborde de la première page : ce qui est visible ici est
+// EXACTEMENT ce qui basculera sur la page suivante à l'impression, puisque
+// la mesure porte sur le même DOM que celui imprimé (#cv-print-root).
+function PageGuides({ pageCount }) {
+  if (pageCount <= 1) return null
+  const lines = Array.from({ length: pageCount - 1 }, (_, i) => (i + 1) * A4_H)
+  return (
+    <div className="print:hidden" aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+      <div style={{ position: 'absolute', top: A4_H, left: 0, right: 0, bottom: 0, background: 'rgba(220, 38, 38, 0.05)' }} />
+      {lines.map(top => (
+        <div key={top} style={{ position: 'absolute', top, left: 0, right: 0 }}>
+          <div style={{ borderTop: '2px dashed #dc2626' }} />
+          <span style={{
+            position: 'absolute', top: 4, right: 8, fontSize: 10, fontWeight: 700,
+            color: '#dc2626', background: '#fff', padding: '1px 6px', borderRadius: 3,
+            border: '1px solid #dc2626', letterSpacing: 0.3,
+          }}>
+            Page {Math.round(top / A4_H) + 1}
+          </span>
+        </div>
+      ))}
     </div>
   )
 }
@@ -406,13 +462,20 @@ function DatedEntry({ left, right, period, timeline, S }) {
   )
 }
 
+// Filtre les entrées masquées tout en conservant leur index D'ORIGINE dans le
+// tableau complet : upArr/moveEntry écrivent dans ce tableau complet, et un
+// index de position filtrée y écrirait au mauvais endroit.
+const withOriginalIndex = (list = []) => list
+  .map((item, i) => ({ item, i }))
+  .filter(({ item }) => !item?.hidden)
+
 function Experience({ d, tpl, accent, S, upArr, editable, hideTitles, moveEntry, entryDrag, setEntryDrag }) {
-  const list = d.experiences || []
+  const list = withOriginalIndex(d.experiences)
   if (list.length === 0 && !editable) return null
   return (
     <div>
       <STitle label="Expériences professionnelles" tpl={tpl} accent={accent} S={S} hideTitles={hideTitles} />
-      {list.map((exp, i) => (
+      {list.map(({ item: exp, i }) => (
         <EntryShell key={i} field="experiences" index={i} accent={accent}
           moveEntry={moveEntry} entryDrag={entryDrag} setEntryDrag={setEntryDrag}>
           <DatedEntry timeline={tpl.timeline} S={S}
@@ -440,12 +503,12 @@ function Experience({ d, tpl, accent, S, upArr, editable, hideTitles, moveEntry,
 }
 
 function Education({ d, tpl, accent, S, upArr, editable, hideTitles, moveEntry, entryDrag, setEntryDrag }) {
-  const list = d.education || []
+  const list = withOriginalIndex(d.education)
   if (list.length === 0 && !editable) return null
   return (
     <div>
       <STitle label="Formation" tpl={tpl} accent={accent} S={S} hideTitles={hideTitles} />
-      {list.map((edu, i) => (
+      {list.map(({ item: edu, i }) => (
         <EntryShell key={i} field="education" index={i} accent={accent}
           moveEntry={moveEntry} entryDrag={entryDrag} setEntryDrag={setEntryDrag}>
           <DatedEntry timeline={tpl.timeline} S={S}
@@ -468,8 +531,8 @@ function Education({ d, tpl, accent, S, upArr, editable, hideTitles, moveEntry, 
 }
 
 function Skills({ d, tpl, accent, S, hideTitles }) {
-  const tech = d.techSkills || []
-  const soft = d.softSkills || []
+  const tech = visibleStrings(d, 'techSkills')
+  const soft = visibleStrings(d, 'softSkills')
   if (tech.length + soft.length === 0) return null
   if (tpl.id === 'minimaliste') {
     return (
@@ -493,7 +556,7 @@ function Skills({ d, tpl, accent, S, hideTitles }) {
 }
 
 function Languages({ d, tpl, accent, S, hideTitles }) {
-  const list = d.languages || []
+  const list = visibleEntries(d.languages)
   if (list.length === 0) return null
   return (
     <div>
@@ -508,12 +571,12 @@ function Languages({ d, tpl, accent, S, hideTitles }) {
 }
 
 function Projects({ d, tpl, accent, S, upArr, editable, hideTitles }) {
-  const list = d.projects || []
+  const list = withOriginalIndex(d.projects)
   if (list.length === 0) return null
   return (
     <div>
       <STitle label="Projets" tpl={tpl} accent={accent} S={S} hideTitles={hideTitles} />
-      {list.map((p, i) => (
+      {list.map(({ item: p, i }) => (
         <div key={i} style={{ marginBottom: 9 }}>
           <span style={{ fontSize: S.body, fontWeight: 700 }}>
             <E value={p.name} onChange={editable ? upArr('projects', i, 'name') : undefined} placeholder="Nom du projet" />
@@ -530,7 +593,7 @@ function Projects({ d, tpl, accent, S, upArr, editable, hideTitles }) {
 }
 
 function Certifications({ d, tpl, accent, S, hideTitles }) {
-  const list = d.certifications || []
+  const list = visibleEntries(d.certifications)
   if (list.length === 0) return null
   return (
     <div>
@@ -545,7 +608,7 @@ function Certifications({ d, tpl, accent, S, hideTitles }) {
 }
 
 function Volunteering({ d, tpl, accent, S, upArr, editable, hideTitles }) {
-  const list = d.volunteering || []
+  const list = visibleEntries(d.volunteering)
   if (list.length === 0) return null
   return (
     <div>
@@ -569,7 +632,7 @@ function Volunteering({ d, tpl, accent, S, upArr, editable, hideTitles }) {
 }
 
 function Interests({ d, tpl, accent, S, hideTitles }) {
-  const list = d.interests || []
+  const list = visibleStrings(d, 'interests')
   if (list.length === 0) return null
   return (
     <div>
@@ -629,7 +692,7 @@ function SidebarBlock({ type, d, tpl, accent, S, up, editable }) {
     )
   }
   if (type === 'skills') {
-    const all = [...(d.techSkills || []), ...(d.softSkills || [])]
+    const all = [...visibleStrings(d, 'techSkills'), ...visibleStrings(d, 'softSkills')]
     if (all.length === 0) return null
     return (
       <div>
@@ -639,7 +702,7 @@ function SidebarBlock({ type, d, tpl, accent, S, up, editable }) {
     )
   }
   if (type === 'languages') {
-    const list = d.languages || []
+    const list = visibleEntries(d.languages)
     if (list.length === 0) return null
     return (
       <div>
@@ -653,7 +716,7 @@ function SidebarBlock({ type, d, tpl, accent, S, up, editable }) {
     )
   }
   if (type === 'certifications') {
-    const list = d.certifications || []
+    const list = visibleEntries(d.certifications)
     if (list.length === 0) return null
     return (
       <div>
@@ -663,7 +726,7 @@ function SidebarBlock({ type, d, tpl, accent, S, up, editable }) {
     )
   }
   if (type === 'interests') {
-    const list = d.interests || []
+    const list = visibleStrings(d, 'interests')
     if (list.length === 0) return null
     return (
       <div>

@@ -53,7 +53,9 @@ export default function OffresPage() {
       <AppHeader />
 
       <main className="max-w-4xl mx-auto px-6 py-9">
-        <h1 className="text-xl font-semibold mb-1.5">Rechercher des offres d'emploi</h1>
+        <h1 className="font-display font-semibold mb-1.5 hero-in" style={{ fontSize: 'clamp(1.4rem, 2.6vw, 1.75rem)' }}>
+          Rechercher des offres d'emploi
+        </h1>
         <p className="text-sm mb-7 leading-relaxed max-w-2xl" style={{ color: 'var(--c-body)' }}>
           Les offres ne sont pas hébergées ici : la recherche s'effectue directement sur
           <strong> France Travail</strong>, où les annonces sont à jour et où vous pouvez

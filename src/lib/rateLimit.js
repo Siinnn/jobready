@@ -23,6 +23,8 @@ export const LIMITS = {
   suggest:     { max: 15, window: HOUR, label: "générations d'accroche" },
   letterDraft: { max: 10, window: HOUR, label: 'brouillons de lettre' },
   analyzeCv:   { max: 6,  window: HOUR, label: 'analyses de CV' },
+  trimCv:      { max: 8,  window: HOUR, label: "analyses d'allègement de CV" },
+  generatePdf: { max: 30, window: HOUR, label: 'exports PDF' },
 }
 
 function clientKey(req) {
