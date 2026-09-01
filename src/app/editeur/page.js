@@ -47,6 +47,22 @@ export default function EditeurPage() {
   const [zoom, setZoom] = useState(0.7)
   const [pageInfo, setPageInfo] = useState({ pages: 1 })
 
+  // Mesure réelle du DOM de l'aperçu — voir CVPreview (onPageCount). useCallback
+  // garde une référence stable pour éviter de redéclencher la mesure en boucle.
+  // Déclaré ICI (avant le retour anticipé ci-dessous), de même que useDragList
+  // juste après : les Hooks doivent s'exécuter dans le même ordre à chaque
+  // rendu, y compris pendant le chargement initial où activeCv n'est pas
+  // encore disponible (d'où les valeurs de repli ci-dessous).
+  const onPageCount = useCallback((info) => setPageInfo(info), [])
+
+  // Glisser-déposer des rubriques (les flèches restent l'équivalent clavier).
+  // Repli sur un tableau vide tant que activeCv n'est pas chargé.
+  const drag = useDragList(
+    activeCv?.sections || [],
+    (arr) => activeCv && updateCv(activeCv.id, { sections: arr }),
+    (s) => s.id,
+  )
+
   useEffect(() => {
     if (isInitialized && !activeCv) router.push('/mes-cv')
   }, [isInitialized, activeCv, router])
@@ -66,10 +82,6 @@ export default function EditeurPage() {
   const upTheme = (patch) => updateCv(cv.id, c => ({ theme: { ...c.theme, ...patch } }))
   const upSections = (fn) => updateCv(cv.id, c => ({ sections: fn(c.sections) }))
 
-  // Mesure réelle du DOM de l'aperçu — voir CVPreview (onPageCount). useCallback
-  // garde une référence stable pour éviter de redéclencher la mesure en boucle.
-  const onPageCount = useCallback((info) => setPageInfo(info), [])
-
   const toggleSection = (id) => upSections(s => s.map(x => x.id === id ? { ...x, visible: x.visible === false } : x))
   // Masquer l'intitulé d'une rubrique sans masquer son contenu
   const toggleTitle = (id) => upSections(s => s.map(x => x.id === id
@@ -83,9 +95,6 @@ export default function EditeurPage() {
   const addSection = (id) => upSections(s => s.some(x => x.id === id) ? s : [...s, { id, visible: true }])
   const removeSection = (id) => upSections(s => s.filter(x => x.id !== id))
   const missing = Object.keys(SECTION_TYPES).filter(t => SECTION_TYPES[t].optional && !cv.sections.some(s => s.id === t))
-
-  // Glisser-déposer des rubriques (les flèches restent l'équivalent clavier)
-  const drag = useDragList(cv.sections, (arr) => updateCv(cv.id, { sections: arr }), (s) => s.id)
 
   return (
     <div className="h-screen flex flex-col">
